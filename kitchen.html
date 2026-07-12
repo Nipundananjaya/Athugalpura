@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="supabase_helper.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kitchen Pro - SmartServe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/feather-icons"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+:root {
+  --bg-app: #0B0F19;
+  --bg-glass: rgba(30, 41, 59, 0.7);
+  --border-glass: rgba(255, 255, 255, 0.1);
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --primary: #FF4B2B;
+  --primary-gradient: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
+  --pending: #f59e0b;
+  --preparing: #3b82f6;
+  --ready: #10b981;
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --radius-md: 16px;
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg-app);
+  background-image: radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(255, 75, 43, 0.15) 0px, transparent 50%);
+  background-attachment: fixed;
+  color: var(--text-main);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* HEADER */
+header {
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-glass);
+  padding: 16px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow-glass);
+}
+
+.brand-section { display: flex; align-items: center; gap: 16px; }
+.brand-logo {
+  font-size: 26px;
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 800;
+}
+
+.station-select {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  border: 1px solid var(--border-glass);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+}
+.station-select option { background: var(--bg-app); }
+
+.header-meta { display: flex; align-items: center; gap: 16px; }
+
+.action-btn {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-glass);
+  color: var(--text-main);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+.action-btn:hover { background: rgba(255,255,255,0.1); }
+.action-btn.alert:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.live-time { font-size: 16px; font-weight: 700; letter-spacing: 1px; margin-left: 10px; }
+
+/* MAIN GRID */
+.kds-container {
+  padding: 32px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+
+/* TICKET CARD */
+.ticket-card {
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-glass);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.3s, box-shadow 0.3s;
+  animation: slideUp 0.4s ease forwards;
+}
+.ticket-card:hover { transform: translateY(-4px); border-color: rgba(255,255,255,0.2); }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+.ticket-card.overdue { border-color: rgba(239, 68, 68, 0.5); box-shadow: 0 0 20px rgba(239, 68, 68, 0.2); }
+
+.ticket-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-glass);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0,0,0,0.2);
+}
+.ticket-table { font-size: 24px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+.ticket-table i { color: var(--primary); }
+.ticket-meta { text-align: right; }
+.ticket-id { font-size: 13px; color: var(--text-muted); font-weight: 600; margin-bottom: 4px; }
+.ticket-time { font-size: 14px; font-weight: 700; color: var(--pending); display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
+.ticket-time.late { color: #ef4444; animation: pulse 1s infinite; }
+
+.ticket-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+.ticket-item {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 8px;
+}
+.ticket-item-top { display: flex; align-items: center; justify-content: space-between; }
+.item-info { display: flex; align-items: center; gap: 12px; }
+.item-qty {
+  font-size: 16px; font-weight: 800; color: var(--bg-app); background: #fff; width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center; border-radius: 6px;
+}
+.item-name { font-size: 16px; font-weight: 500; }
+
+.item-notes {
+  margin-top: 8px; font-size: 14px; font-weight: 800; color: #000;
+  background: #ffea00; padding: 6px 10px; border-radius: 4px; border-left: 5px solid #ff3300;
+  animation: pulse-alert 2s infinite; text-transform: uppercase; letter-spacing: 0.5px;
+}
+@keyframes pulse-alert { 0% { box-shadow: 0 0 0 0 rgba(255,234,0, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255,234,0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255,234,0, 0); } }
+
+
+.item-status-btn {
+  border: none; padding: 8px 16px; border-radius: 6px; font-family: inherit; font-weight: 700; font-size: 13px;
+  cursor: pointer; display: flex; align-items: center; gap: 6px;
+}
+.btn-cook { background: rgba(245, 158, 11, 0.15); color: var(--pending); border: 1px solid rgba(245, 158, 11, 0.3); }
+.btn-cook:hover { background: var(--pending); color: #fff; }
+.btn-ready { background: rgba(59, 130, 246, 0.15); color: var(--preparing); border: 1px solid rgba(59, 130, 246, 0.3); }
+.btn-ready:hover { background: var(--preparing); color: #fff; }
+
+.item-done { opacity: 0.5; background: transparent !important; border-color: transparent !important; }
+.item-done .item-name { text-decoration: line-through; }
+.item-done .item-qty { background: var(--text-muted); color: var(--bg-app); }
+.done-badge { color: var(--ready); display: flex; align-items: center; gap: 4px; font-weight: 700; font-size: 13px; }
+
+.ticket-footer { padding: 16px 20px; border-top: 1px solid var(--border-glass); background: rgba(0,0,0,0.15); }
+.serve-btn {
+  width: 100%; padding: 12px; border: none; border-radius: 8px; font-family: inherit; font-weight: 800;
+  font-size: 15px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px;
+}
+.serve-btn.ready { background: var(--ready); color: #fff; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4); }
+.serve-btn.disabled { background: rgba(255,255,255,0.05); color: var(--text-muted); cursor: not-allowed; }
+
+/* SIDEBAR & MODALS */
+.sidebar, .modal {
+  position: fixed; top: 0; right: -400px; width: 400px; height: 100vh;
+  background: var(--bg-app); border-left: 1px solid var(--border-glass);
+  box-shadow: -10px 0 30px rgba(0,0,0,0.5); z-index: 1000; transition: right 0.3s ease;
+  display: flex; flex-direction: column;
+}
+.sidebar.open, .modal.open { right: 0; }
+
+.panel-header {
+  padding: 20px; border-bottom: 1px solid var(--border-glass); display: flex;
+  justify-content: space-between; align-items: center; font-size: 20px; font-weight: 700;
+}
+.close-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; }
+.close-btn:hover { color: #fff; }
+
+.panel-body { padding: 20px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+
+/* 86 List */
+.menu-item-row {
+  display: flex; justify-content: space-between; align-items: center;
+  background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px;
+}
+.menu-item-name { font-weight: 600; }
+.menu-item-cat { font-size: 12px; color: var(--text-muted); }
+.toggle-btn {
+  padding: 6px 12px; border-radius: 4px; border: none; font-weight: 700; cursor: pointer; font-family: inherit;
+}
+.toggle-on { background: rgba(16, 185, 129, 0.2); color: var(--ready); }
+.toggle-off { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+/* Undo List */
+.undo-card {
+  background: rgba(255,255,255,0.05); border: 1px solid var(--border-glass);
+  padding: 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;
+}
+.undo-info { display: flex; flex-direction: column; gap: 4px; }
+.undo-btn {
+  background: var(--pending); border: none; color: #fff; padding: 8px 16px;
+  border-radius: 6px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;
+}
+</style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="brand-section">
+      <img src="logo.png" alt="Athugalpura Logo" style="height: 35px; border-radius: 4px;"/>
+      <h1 class="brand-logo" style="margin: 0; display: inline-block;">Athugalpura</h1>
+      <span class="brand-title" style="font-size: 18px; font-weight: 600; color: var(--text-muted); border-left: 2px solid var(--border-glass); padding-left: 12px; margin-right: 16px;">KITCHEN MONITOR</span>
+      <select class="station-select" id="station-filter" onchange="renderKDS()">
+        <option value="ALL">All Stations</option>
+        <!-- Categories injected here -->
+      </select>
+    </div>
+    
+    <div class="header-meta">
+      <button class="action-btn" onclick="openAggregationPanel()"><i data-feather="list" style="width:16px;"></i> Prep Load</button>
+      <button class="action-btn" onclick="openUndoModal()"><i data-feather="rotate-ccw" style="width:16px;"></i> Recall</button>
+      <button class="action-btn alert" onclick="open86Panel()"><i data-feather="alert-triangle" style="width:16px;"></i> 86 Items</button>
+      <div class="live-time" id="live-clock">--:--:--</div>
+      <a href="/api/logout" class="action-btn" style="text-decoration:none;"><i data-feather="log-out" style="width:16px;"></i></a>
+    </div>
+  </header>
+
+  <!-- KDS GRID -->
+  <div class="kds-container" id="kds-grid"></div>
+
+  <!-- 86 PANEL -->
+  <div class="sidebar" id="panel-86">
+    <div class="panel-header">
+      <span>Manage Availability (86)</span>
+      <button class="close-btn" onclick="document.getElementById('panel-86').classList.remove('open')"><i data-feather="x"></i></button>
+    </div>
+    <div class="panel-body" id="list-86">Loading...</div>
+  </div>
+
+  
+  <!-- AGGREGATION PANEL -->
+  <div class="sidebar" id="panel-aggregation">
+    <div class="panel-header">
+      <span>Aggregated Prep Load</span>
+      <button class="close-btn" onclick="document.getElementById('panel-aggregation').classList.remove('open')"><i data-feather="x"></i></button>
+    </div>
+    <div class="panel-body" id="list-aggregation">Loading...</div>
+  </div>
+
+  <!-- UNDO MODAL -->
+  <div class="modal" id="modal-undo">
+    <div class="panel-header">
+      <span>Recently Served</span>
+      <button class="close-btn" onclick="document.getElementById('modal-undo').classList.remove('open')"><i data-feather="x"></i></button>
+    </div>
+    <div class="panel-body" id="list-undo">Loading...</div>
+  </div>
+
+  <script>
+    feather.replace();
+
+    let activeOrders = [];
+    let knownOrderIds = new Set();
+    let categories = new Set();
+    let isInitialLoad = true;
+
+    // --- Init ---
+    // SUPABASE_URL and SUPABASE_KEY are exposed globally by supabase_helper.js
+    let supabaseClient = null;
+    function initRealtimeClient() {
+      if (window.supabase && window.SUPABASE_URL && window.SUPABASE_KEY) {
+        try {
+          supabaseClient = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY);
+          supabaseClient.channel('kds:orders')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => pollOrders())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => pollOrders())
+            .subscribe((status) => {
+              console.log('[KDS] Realtime status:', status);
+              if (status === 'SUBSCRIBED') {
+                // Clear the fallback poll interval since realtime is working
+                clearInterval(window._kdsFallbackPoll);
+              }
+            });
+        } catch(e) {
+          console.warn('[KDS] Realtime init failed, using polling fallback:', e.message);
+        }
+      }
+    }
+
+    function init() {
+      pollOrders();
+      setInterval(updateClock, 1000);
+      setInterval(updateElapsedTimers, 5000);
+      // Fallback poll every 5s in case realtime is not available
+      window._kdsFallbackPoll = setInterval(pollOrders, 5000);
+      document.body.addEventListener('click', () => {
+        try { const a = new (window.AudioContext || window.webkitAudioContext)(); if(a.state === 'suspended') a.resume(); } catch(e){}
+      }, { once: true });
+      // Init real-time after a short delay to let CDN load
+      setTimeout(initRealtimeClient, 800);
+    }
+    
+    function openAggregationPanel() {
+      document.getElementById('panel-aggregation').classList.add('open');
+      const aggregation = {};
+      activeOrders.forEach(o => {
+        if (o.status !== 'ready' && o.status !== 'served') {
+          o.items.forEach(i => {
+            if (i.item_status !== 'ready') {
+              aggregation[i.item_name] = (aggregation[i.item_name] || 0) + i.quantity;
+            }
+          });
+        }
+      });
+      
+      const listHtml = Object.entries(aggregation)
+        .sort((a,b) => b[1] - a[1])
+        .map(([name, qty]) => `
+          <div class="menu-item-row" style="background: rgba(255,255,255,0.1); border-left: 4px solid var(--primary);">
+            <div class="menu-item-name" style="font-size: 18px;">${name}</div>
+            <div class="toggle-btn" style="background: var(--bg-app); font-size: 18px;">${qty}x</div>
+          </div>
+        `).join('');
+      document.getElementById('list-aggregation').innerHTML = listHtml || 'No items in prep.';
+    }
+
+    function updateClock() {
+      document.getElementById('live-clock').textContent = new Date().toLocaleTimeString();
+    }
+
+    function playChime() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const playNote = (freq, startTime, duration) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'sine'; osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.3, startTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+          osc.start(startTime); osc.stop(startTime + duration);
+        };
+        playNote(1046.50, ctx.currentTime, 0.3); // High C
+        playNote(1318.51, ctx.currentTime + 0.15, 0.4); // High E
+      } catch(e) {}
+    }
+
+    // --- Data Fetch ---
+    let pollRetryCount = 0;
+    function pollOrders() {
+      const grid = document.getElementById('kds-grid');
+      if (activeOrders.length === 0) {
+        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:80px;color:var(--text-muted);">
+          <div style="font-size:40px;margin-bottom:12px;">⏳</div><p style="font-size:18px;">Loading orders...</p></div>`;
+      }
+      fetch('/api/kitchen?action=fetch_active')
+        .then(res => {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .then(data => {
+          pollRetryCount = 0;
+          if (data.success) {
+            activeOrders = data.data || [];
+            processData();
+            renderKDS();
+          } else {
+            showKDSError('Server error: ' + (data.message || 'Unknown'));
+          }
+        })
+        .catch(err => {
+          pollRetryCount++;
+          showKDSError(`Connection error (retry #${pollRetryCount}): ${err.message}`);
+          // Auto-retry every 5s on failure
+          setTimeout(pollOrders, 5000);
+        });
+    }
+
+    function showKDSError(msg) {
+      if (activeOrders.length === 0) {
+        document.getElementById('kds-grid').innerHTML = `
+          <div style="grid-column:1/-1;text-align:center;padding:80px;">
+            <div style="font-size:48px;margin-bottom:16px;">⚠️</div>
+            <h2 style="color:#ef4444;margin-bottom:8px;">Cannot Load Orders</h2>
+            <p style="color:var(--text-muted);margin-bottom:24px;">${msg}</p>
+            <button onclick="pollOrders()" style="background:var(--primary);color:#fff;border:none;padding:12px 28px;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer;">🔄 Retry Now</button>
+          </div>`;
+      }
+      console.error('[Kitchen]', msg);
+    }
+
+    function processData() {
+      let hasNew = false;
+      let newCategories = new Set();
+      
+      activeOrders.forEach(o => {
+        if (!knownOrderIds.has(o.order_id)) { hasNew = true; knownOrderIds.add(o.order_id); }
+        o.items.forEach(i => {
+          if (i.category_name) newCategories.add(i.category_name);
+        });
+      });
+      
+      if (hasNew && !isInitialLoad) playChime();
+      isInitialLoad = false;
+
+      // Update Station Filter
+      const select = document.getElementById('station-filter');
+      newCategories.forEach(cat => {
+        if (!categories.has(cat)) {
+          categories.add(cat);
+          const opt = document.createElement('option');
+          opt.value = cat; opt.textContent = cat;
+          select.appendChild(opt);
+        }
+      });
+    }
+
+    function getMinutes(ts) {
+      return Math.floor((new Date() - new Date(ts.replace(' ', 'T'))) / 60000);
+    }
+    
+    function formatTime(ts) {
+      const m = getMinutes(ts); return m < 1 ? 'Just now' : `${m}m ago`;
+    }
+
+    function updateElapsedTimers() {
+      document.querySelectorAll('.ticket-time').forEach(el => {
+        const ts = el.getAttribute('data-ts');
+        if (ts) {
+          const m = getMinutes(ts);
+          el.innerHTML = `<i data-feather="clock" style="width:14px;"></i> ${formatTime(ts)}`;
+          if (m >= 15) el.closest('.ticket-card').classList.add('overdue');
+        }
+      });
+      feather.replace();
+    }
+
+    // --- API Actions ---
+    function updateItem(orderItemId, status) {
+      fetch('/api/kitchen?action=update_item_status', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ order_item_id: orderItemId, status: status })
+      }).then(() => pollOrders());
+    }
+
+        function markReady(orderId) {
+      fetch('/api/kitchen?action=update_status', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ order_id: orderId, status: 'ready' })
+      }).then(() => pollOrders());
+    }
+    
+    function serveOrder(orderId) {
+      fetch('/api/kitchen?action=update_status', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ order_id: orderId, status: 'served' })
+      }).then(() => pollOrders());
+    }
+
+    // --- 86 Panel ---
+    function open86Panel() {
+      document.getElementById('panel-86').classList.add('open');
+      fetch('/api/kitchen?action=fetch_menu_items').then(r=>r.json()).then(d => {
+        const html = d.data.map(item => `
+          <div class="menu-item-row">
+            <div>
+              <div class="menu-item-name">${item.item_name}</div>
+              <div class="menu-item-cat">${item.category_name || 'Uncategorized'}</div>
+            </div>
+            <button class="toggle-btn ${item.is_available ? 'toggle-on' : 'toggle-off'}" 
+                    onclick="toggle86(${item.item_id}, ${!item.is_available})">
+              ${item.is_available ? 'IN STOCK' : 'OUT (86)'}
+            </button>
+          </div>
+        `).join('');
+        document.getElementById('list-86').innerHTML = html || 'No items.';
+      });
+    }
+
+    function toggle86(itemId, isAvailable) {
+      fetch('/api/kitchen?action=toggle_item_availability', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ item_id: itemId, is_available: isAvailable })
+      }).then(() => open86Panel());
+    }
+
+    // --- Undo Modal ---
+    function openUndoModal() {
+      document.getElementById('modal-undo').classList.add('open');
+      fetch('/api/kitchen?action=fetch_recently_served').then(r=>r.json()).then(d => {
+        const html = d.data.map(o => `
+          <div class="undo-card">
+            <div class="undo-info">
+              <strong>Order #${o.order_id} - Table ${o.table_number}</strong>
+              <span style="font-size:12px; color:var(--text-muted);">${formatTime(o.order_date)}</span>
+            </div>
+            <button class="undo-btn" onclick="undoOrder(${o.order_id})">
+              <i data-feather="corner-up-left" style="width:14px;"></i> Recall
+            </button>
+          </div>
+        `).join('');
+        document.getElementById('list-undo').innerHTML = html || 'No recent orders.';
+        feather.replace();
+      });
+    }
+
+    function undoOrder(orderId) {
+      fetch('/api/kitchen?action=update_status', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ order_id: orderId, status: 'ready' })
+      }).then(() => {
+        document.getElementById('modal-undo').classList.remove('open');
+        pollOrders();
+      });
+    }
+
+    // --- Render ---
+    function renderKDS() {
+      const grid = document.getElementById('kds-grid');
+      const activeFilter = document.getElementById('station-filter').value;
+      grid.innerHTML = '';
+      
+      let renderedTickets = 0;
+
+      activeOrders.forEach(order => {
+        // Filter items for this station
+        let displayItems = order.items;
+        if (activeFilter !== 'ALL') {
+          displayItems = displayItems.filter(i => i.category_name === activeFilter);
+        }
+        
+        if (displayItems.length === 0) return; // Skip ticket if no items for this station
+        renderedTickets++;
+        
+        let allReady = true;
+        let itemsHtml = displayItems.map(item => {
+          let st = item.item_status || 'pending';
+          if (st !== 'ready') allReady = false;
+          
+          let btnHtml = '';
+          let rowClass = 'ticket-item';
+          
+          if (st === 'pending') {
+            btnHtml = `<button class="item-status-btn btn-cook" onclick="updateItem(${item.order_item_id}, 'preparing')"><i data-feather="play" style="width:14px;"></i> Cook</button>`;
+          } else if (st === 'preparing') {
+            btnHtml = `<button class="item-status-btn btn-ready" onclick="updateItem(${item.order_item_id}, 'ready')"><i data-feather="check" style="width:14px;"></i> Done</button>`;
+          } else {
+            rowClass += ' item-done';
+            btnHtml = `<span class="done-badge"><i data-feather="check-circle" style="width:16px;"></i> Ready</span>`;
+          }
+
+          let notesHtml = item.notes ? `<div class="item-notes"><i data-feather="info" style="width:12px; display:inline-block; margin-right:4px;"></i> ${item.notes}</div>` : '';
+          
+          return `
+            <div class="${rowClass}">
+              <div class="ticket-item-top">
+                <div class="item-info">
+                  <span class="item-qty">${item.quantity}</span>
+                  <span class="item-name">${item.item_name}</span>
+                </div>
+                <div>${btnHtml}</div>
+              </div>
+              ${notesHtml}
+            </div>
+          `;
+        }).join('');
+        
+        const isOrderReady = order.status === 'ready' || allReady;
+        
+        const footerHtml = isOrderReady 
+          ? `<button class="serve-btn ready" onclick="markReady(${order.order_id})"><i data-feather="bell"></i> Mark Ready</button>`
+          : `<button class="serve-btn disabled" disabled><i data-feather="loader"></i> Preparing...</button>`;
+
+        const m = getMinutes(order.order_date);
+        const card = document.createElement('div');
+        card.className = `ticket-card ${m >= 15 ? 'overdue' : ''}`;
+        
+        card.innerHTML = `
+          <div class="ticket-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+  <div class="ticket-table"><i data-feather="hash"></i>${order.table_number}</div>
+  <div style="font-size: 14px; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px;">Sess: ${String(order.session_id || 'Legacy').substring(0,4)}</div>
+</div>
+            <div class="ticket-meta">
+              <div class="ticket-id">Order #${order.order_id}</div>
+              <div class="ticket-time ${m>=15?'late':''}" data-ts="${order.order_date}">
+                <i data-feather="clock" style="width:14px;"></i> ${formatTime(order.order_date)}
+              </div>
+            </div>
+          </div>
+          <div class="ticket-body">${itemsHtml}</div>
+          <div class="ticket-footer">${footerHtml}</div>
+        `;
+        grid.appendChild(card);
+      });
+      
+      if (renderedTickets === 0) {
+        grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding: 100px; color: var(--text-muted);">
+          <i data-feather="check-circle" style="width:64px;height:64px; margin-bottom:16px;"></i>
+          <h2>Clear!</h2><p>No active orders for ${activeFilter === 'ALL' ? 'the kitchen' : 'this station'}.</p>
+        </div>`;
+      }
+      feather.replace();
+    }
+
+    // Session guard — check login before starting
+    function startKitchen() {
+      fetch('/api/check_session')
+        .then(r => r.json())
+        .then(data => {
+          if (!data.logged_in) {
+            window.location.href = 'index.html';
+            return;
+          }
+          const role = data.role;
+          if (role !== 'kitchen' && role !== 'admin') {
+            window.location.href = role === 'waiter' ? 'waiter.html' : 'index.html';
+            return;
+          }
+          init();
+        })
+        .catch(() => {
+          // If check_session fails (no network), start anyway
+          console.warn('[KDS] Session check failed. Starting in offline mode.');
+          init();
+        });
+    }
+    startKitchen();
+  </script>
+</body>
+</html>
