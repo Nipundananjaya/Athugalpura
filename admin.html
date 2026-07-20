@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <script src="supabase_helper.js"></script>
@@ -3089,50 +3089,63 @@ function pollDashboardData() {
         document.getElementById('stat-occupied-tables').textContent = s.occupied_tables;
         document.getElementById('stat-empty-tables').textContent = s.empty_tables;
 
-        // Update total tables sub-text dynamically
+        // Update total tables count sub-text
         const totalTablesEl = document.getElementById('stat-total-tables');
-        if (totalTablesEl && s.total_tables !== undefined) {
-          totalTablesEl.textContent = s.total_tables;
-        }
+        if (totalTablesEl && s.total_tables !== undefined) totalTablesEl.textContent = s.total_tables;
 
-        // Update sub-texts with live context
+        // Update revenue date label and served items count
         const todayLabel = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         const revSub = document.getElementById('stat-revenue-sub');
         if (revSub) revSub.textContent = todayLabel;
         const servedSub = document.getElementById('stat-served-sub');
         if (servedSub) servedSub.textContent = s.items_served + ' items';
 
-        // 2. Update live orders table
-        const tbody = document.getElementById('orders-table-body');
+        // 2. Update the live orders table on the dashboard
+        const livetbody = document.getElementById('orders-table-body');
         const liveCountEl = document.getElementById('live-orders-count');
         if (liveCountEl) liveCountEl.textContent = s.active_orders + ' active';
 
-        if (data.live_orders.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="4" class="no-data-msg">No active orders at the moment.</td></tr>';
+        if (!data.live_orders || data.live_orders.length === 0) {
+          if (livetbody) livetbody.innerHTML = '<tr><td colspan="4" class="no-data-msg">No active orders at the moment.</td></tr>';
         } else {
-          const statusEmoji = { pending: '⏳', preparing: '👨‍🍳', ready: '🔔' };
-          tbody.innerHTML = data.live_orders.map(order => {
-            const statusLabels = { pending: 'Pending', preparing: 'Preparing', ready: 'Ready!' };
-      const uname = localStorage.getItem('username') || 'Admin';
-      const uEl = document.getElementById('av-username');
-      const iEl = document.getElementById('av-initials');
-      if (uEl) uEl.textContent = uname;
-      if (iEl) iEl.textContent = uname.substring(0,2).toUpperCase();
-    }
-    startDashboardPolling();
-  })
-  .catch(() => {
-    console.warn('Session check unavailable   running outside PHP server.');
-    // Demo Mode fallback
-    startDashboardPolling();
-  });
+          const statusLabels  = { pending: 'Pending', preparing: 'Preparing', ready: 'Ready!' };
+          const statusClasses = { pending: 'pending', preparing: 'preparing', ready: 'ready' };
+          if (livetbody) livetbody.innerHTML = data.live_orders.map(function(order) {
+            const statusText  = statusLabels[order.status]  || order.status;
+            const statusClass = statusClasses[order.status] || 'pending';
+            const diff = Math.floor((Date.now() - new Date(order.order_date).getTime()) / 60000);
+            const timeAgo = diff < 1 ? 'just now' : diff + ' min ago';
+            return '<tr><td><b style="color:var(--primary);">#' + order.order_id + '</b><br><span style="font-size:10px;color:var(--muted);">' + timeAgo + '</span></td><td><span style="font-weight:700;">Table ' + order.table_number + '</span></td><td style="font-weight:600;">Rs. ' + parseFloat(order.total_amount).toFixed(2) + '</td><td><span class="status-badge ' + statusClass + '">' + statusText + '</span></td></tr>';
+          }).join('');
+        }
 
+        // 3. Update category doughnut chart with today data
+        if (data.chart && data.chart.labels && data.chart.labels.length > 0) {
+          var catColors = ['#FF4B2B', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+          initCategoryChart(data.chart.labels, data.chart.data, catColors.slice(0, data.chart.labels.length));
+        } else {
+          initCategoryChart(['No Data'], [1], ['#E2E4ED']);
+        }
 
-const dateEl = document.getElementById('live-date');
+        // 4. Update popular items bar chart
+        if (data.items_chart && data.items_chart.labels && data.items_chart.labels.length > 0) {
+          var barColors = ['rgba(255,75,43,0.85)','rgba(59,130,246,0.85)','rgba(16,185,129,0.85)','rgba(245,158,11,0.85)','rgba(139,92,246,0.85)'];
+          initItemsChart(data.items_chart.labels, data.items_chart.data, barColors.slice(0, data.items_chart.labels.length));
+        } else {
+          initItemsChart(['No Data'], [0], ['#E2E4ED']);
+        }
+      }
+    })
+    .catch(function(err) {
+      console.warn('Failed to poll dashboard data:', err);
+    });
+}
+
+// Set today's date in the header date element
+var dateEl = document.getElementById('live-date');
 if (dateEl) {
-  const now = new Date();
-  const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
-  dateEl.textContent = now.toLocaleDateString('en-US', options);
+  var now = new Date();
+  dateEl.textContent = now.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
 }
 </script>
 
@@ -3146,8 +3159,173 @@ let ordersInterval   = null;
 let ordersDataCache  = [];
 let currentModalOrderId = null;
 
-// Status badge helper
+// Status badge helper -- returns a colored HTML badge based on order status
 function getStatusBadge(status) {
+  const map = {
+    pending:   { cls: 'pending',   label: 'Pending'   },
+    preparing: { cls: 'preparing', label: 'Preparing' },
+    ready:     { cls: 'ready',     label: 'Ready'     },
+    served:    { cls: 'served',    label: 'Served'    },
+    cancelled: { cls: 'cancelled', label: 'Cancelled' },
+  };
+  const s = map[status] || { cls: '', label: status };
+  return '<span class="status-badge ' + s.cls + '">' + s.label + '</span>';
+}
+
+// Format a raw database timestamp into a readable time string
+function fmtTime(ts) {
+  if (!ts) return '-';
+  const d = new Date(ts);
+  return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+// Render all fetched orders into the admin orders table
+function renderOrdersTable(orders) {
+  const tbody = document.getElementById('ord-table-body');
+  const countBadge = document.getElementById('ord-table-count');
+  if (!tbody) return;
+  countBadge.textContent = orders.length + ' order' + (orders.length !== 1 ? 's' : '');
+  if (orders.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="no-data-msg">No orders found matching your criteria.</td></tr>';
+    return;
+  }
+  const isCancelable = (status) => !['served', 'cancelled'].includes(status);
+  tbody.innerHTML = orders.map(o => `
+    <tr>
+      <td><span class="ord-id">#ORD-${String(o.order_id).padStart(4,'0')}</span></td>
+      <td><span class="ord-table-num">${o.table_number}</span></td>
+      <td><span class="ord-token">${o.customer_token || '-'}</span></td>
+      <td><div class="ord-items-text">${o.items_summary || ''}</div></td>
+      <td style="font-weight:700;">Rs.&nbsp;${parseFloat(o.total_amount).toFixed(2)}</td>
+      <td style="color:var(--muted);font-size:12.5px;">${fmtTime(o.order_date)}</td>
+      <td>${getStatusBadge(o.status)}</td>
+      <td>
+        <div class="ord-actions">
+          <button class="btn-view-detail" onclick="openOrderDetail(${o.order_id})">Details</button>
+          <button class="btn-cancel-ord" onclick="cancelOrderInline(${o.order_id}, this)" ${isCancelable(o.status) ? '' : 'disabled'}>Cancel</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+  if (window.feather) feather.replace();
+}
+
+// Update the KPI summary cards at the top of the orders view
+function updateOrdersKPI(kpi) {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('ord-kpi-total',     kpi.total_today);
+  set('ord-kpi-pending',   kpi.pending_count);
+  set('ord-kpi-preparing', kpi.preparing_count);
+  set('ord-kpi-completed', kpi.completed_count);
+}
+
+// Fetch orders from server filtered by search input and status dropdown
+function fetchOrdersData() {
+  const search = (document.getElementById('ord-search-input')?.value || '').trim();
+  const status = document.getElementById('ord-status-filter')?.value || 'all';
+  let url = '/api/admin?action=fetch_orders';
+  if (status && status !== 'all') url += '&status=' + encodeURIComponent(status);
+  if (search) url += '&search=' + encodeURIComponent(search);
+  fetch(url).then(r => r.json()).then(data => {
+    if (data.success) { ordersDataCache = data.orders; renderOrdersTable(ordersDataCache); updateOrdersKPI(data.kpi); }
+  }).catch(err => console.warn('Orders fetch error:', err));
+}
+
+// Start auto-refreshing orders every 5 seconds
+function startOrdersPolling() {
+  if (ordersInterval) clearInterval(ordersInterval);
+  fetchOrdersData();
+  ordersInterval = setInterval(fetchOrdersData, 5000);
+}
+
+// Stop the auto-refresh interval
+function stopOrdersPolling() {
+  if (ordersInterval) { clearInterval(ordersInterval); ordersInterval = null; }
+}
+
+const ordSearchInput  = document.getElementById('ord-search-input');
+const ordStatusFilter = document.getElementById('ord-status-filter');
+const ordRefreshBtn   = document.getElementById('ord-refresh-btn');
+if (ordSearchInput)  ordSearchInput.addEventListener('input',  fetchOrdersData);
+if (ordStatusFilter) ordStatusFilter.addEventListener('change', fetchOrdersData);
+if (ordRefreshBtn)   ordRefreshBtn.addEventListener('click',   fetchOrdersData);
+
+// Cancel an order from the table row without opening the detail modal
+function cancelOrderInline(orderId, btn) {
+  if (!confirm(`Cancel Order #ORD-${String(orderId).padStart(4,'0')}? This cannot be undone.`)) return;
+  btn.disabled = true; btn.textContent = '...';
+  fetch('/api/admin?action=cancel_order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order_id: orderId }) })
+    .then(r => r.json()).then(data => { if (data.success) fetchOrdersData(); else alert(data.message); }).catch(err => console.error(err));
+}
+
+// ===== ORDER DETAIL MODAL =====
+const ordDetailOverlay   = document.getElementById('ordDetailOverlay');
+const ordModalCloseBtn   = document.getElementById('ordModalCloseBtn');
+const ordModalFooterClose= document.getElementById('ordModalFooterClose');
+const modalCancelOrderBtn= document.getElementById('modalCancelOrderBtn');
+
+// Open the order detail popup and load full order info from the server
+function openOrderDetail(orderId) {
+  currentModalOrderId = orderId;
+  document.getElementById('modalOrdId').textContent = `#ORD-${String(orderId).padStart(4,'0')}`;
+  ['modalOrdTable','modalOrdToken','modalOrdTime'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = '...'; });
+  const sw = document.getElementById('modalOrdStatusWrap'); if(sw) sw.innerHTML = '';
+  const ml = document.getElementById('modalItemsList'); if(ml) ml.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">Loading...</div>';
+  ['modalSubtotal','modalTax','modalGrandTotal'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = 'Rs. -'; });
+  ordDetailOverlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  fetch(`/api/admin?action=order_details&order_id=${orderId}`).then(r => r.json()).then(data => {
+    if (!data.success) { alert(data.message); closeOrderDetail(); return; }
+    document.getElementById('modalOrdTable').textContent    = 'Table ' + data.table_number;
+    document.getElementById('modalOrdToken').textContent    = data.customer_token || '-';
+    document.getElementById('modalOrdTime').textContent     = fmtTime(data.order_date);
+    document.getElementById('modalOrdStatusWrap').innerHTML = getStatusBadge(data.status);
+    const itemsHtml = data.items.length === 0
+      ? '<div style="padding:20px;text-align:center;color:var(--muted);font-style:italic;">No items found.</div>'
+      : data.items.map(item => `<div class="receipt-item-row"><div class="receipt-item-name">${item.item_name}</div><div style="text-align:center;">${item.quantity}</div><div style="text-align:right;">Rs.${parseFloat(item.unit_price).toFixed(2)}</div><div style="text-align:right;font-weight:700;">Rs.${parseFloat(item.subtotal).toFixed(2)}</div></div>`).join('');
+    document.getElementById('modalItemsList').innerHTML     = itemsHtml;
+    document.getElementById('modalSubtotal').textContent    = 'Rs. ' + parseFloat(data.subtotal).toFixed(2);
+    document.getElementById('modalTax').textContent         = 'Rs. ' + parseFloat(data.tax).toFixed(2);
+    document.getElementById('modalGrandTotal').textContent  = 'Rs. ' + parseFloat(data.total).toFixed(2);
+    const canCancel = !['served','cancelled'].includes(data.status);
+    modalCancelOrderBtn.disabled = !canCancel;
+    modalCancelOrderBtn.style.display = canCancel ? '' : 'none';
+  }).catch(err => console.error('Order detail fetch error:', err));
+}
+
+// Close the order detail modal
+function closeOrderDetail() {
+  ordDetailOverlay.classList.remove('open');
+  document.body.style.overflow = '';
+  currentModalOrderId = null;
+}
+
+if (ordModalCloseBtn)    ordModalCloseBtn.addEventListener('click', closeOrderDetail);
+if (ordModalFooterClose) ordModalFooterClose.addEventListener('click', closeOrderDetail);
+if (ordDetailOverlay)    ordDetailOverlay.addEventListener('click', (e) => { if (e.target === ordDetailOverlay) closeOrderDetail(); });
+if (modalCancelOrderBtn) {
+  modalCancelOrderBtn.addEventListener('click', () => {
+    if (!currentModalOrderId) return;
+    const id = currentModalOrderId;
+    if (!confirm(`Cancel Order #ORD-${String(id).padStart(4,'0')}? This cannot be undone.`)) return;
+    modalCancelOrderBtn.disabled = true; modalCancelOrderBtn.textContent = 'Cancelling...';
+    fetch('/api/admin?action=cancel_order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order_id: id }) })
+      .then(r => r.json()).then(data => {
+        if (data.success) { closeOrderDetail(); fetchOrdersData(); }
+        else { alert(data.message); modalCancelOrderBtn.disabled = false; modalCancelOrderBtn.textContent = 'Cancel / Void Order'; }
+      }).catch(err => console.error(err));
+  });
+}
+
+// Close order detail modal when Escape key is pressed
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && ordDetailOverlay && ordDetailOverlay.classList.contains('open')) closeOrderDetail();
+});
+</script>
+
+<!-- QR Code Popup Modal -->
+<div class="qr-modal-overlay" id="qrModalOverlay" onclick="closeQRModal(event)">
+  <div class="qr-modal-box" id="qrModalBox">
     <button class="qr-modal-close" onclick="closeQRModal()">&times;</button>
     <div class="qr-modal-table-num" id="qrModalTableNum">Table 1</div>
     <div class="qr-modal-table-sub">Scan to order from this table</div>
@@ -3166,9 +3344,7 @@ function getStatusBadge(status) {
   </div>
 </div>
 
-<script>
-
-// ==========================================
+<script>// ==========================================
 // REPORTS & ANALYTICS LOGIC
 // ==========================================
 let chartRevenue, chartOrderVolume, chartMenuPerformance, chartTablePerformance;
