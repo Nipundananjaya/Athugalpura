@@ -1385,6 +1385,7 @@ html,body{
       <li><a href="#" id="nav-menu"><i data-feather="book-open"></i> Menu</a></li>
       <li><a href="#" id="nav-tables-qr"><i data-feather="layout"></i> Tables & QR</a></li>
       <li><a href="#" id="nav-staff"><i data-feather="users"></i> Staff</a></li>
+      <li><a href="#" id="nav-assignments"><i data-feather="user-check"></i> Assignments</a></li>
       <li><a href="#" id="nav-reports"><i data-feather="bar-chart-2"></i> Reports</a></li>
     </ul>
     <div class="s-logout">
@@ -1680,6 +1681,54 @@ html,body{
         </div>
       </div>
     </div>
+    <!-- ============================================== -->
+    <!-- ASSIGNMENTS VIEW                               -->
+    <!-- ============================================== -->
+    <div class="content" id="assignments-view" style="display:none;">
+
+      <!-- Top toolbar -->
+      <div style="display:flex; gap:12px; align-items:center; justify-content:space-between; background:#fff; padding:16px 20px; border-radius:12px; border:1px solid var(--border); margin-bottom:20px; flex-wrap:wrap;">
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+          <label style="font-weight:600; font-size:13.5px; color:var(--heading);">Select Waiter:</label>
+          <select id="assign-waiter-select" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-size:13px; outline:none; background:#F8F9FD; cursor:pointer; min-width:180px;" onchange="onWaiterSelectChange()">
+            <option value="">-- Choose a waiter --</option>
+          </select>
+          <span id="assign-waiter-status" style="font-size:12px; padding:3px 10px; border-radius:100px; font-weight:700; display:none;"></span>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button onclick="saveAssignments()" style="padding:8px 18px; background:#6366f1; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
+            <i data-feather="save" style="width:14px;height:14px;"></i> Save Assignments
+          </button>
+          <button onclick="clearAssignments()" style="padding:8px 18px; background:rgba(239,68,68,0.08); color:#ef4444; border:1px solid rgba(239,68,68,0.2); border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
+            <i data-feather="x-circle" style="width:14px;height:14px;"></i> Clear All
+          </button>
+        </div>
+      </div>
+
+      <!-- Two-column layout -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start;">
+
+        <!-- Left: Table Grid Picker -->
+        <div style="background:#fff; border-radius:12px; border:1px solid var(--border); padding:20px;">
+          <h3 style="font-size:14px; font-weight:700; color:var(--heading); margin:0 0 6px 0;">Select Tables to Assign</h3>
+          <p style="font-size:12px; color:var(--subtext); margin:0 0 16px 0;">Click tables to toggle selection for the chosen waiter.</p>
+          <div id="assign-table-grid" style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px;">
+            <!-- Populated by JS -->
+          </div>
+          <p id="assign-no-waiter-msg" style="text-align:center; color:var(--subtext); font-size:13px; padding:20px 0;">Select a waiter above to begin assigning tables.</p>
+        </div>
+
+        <!-- Right: Current Assignments Overview -->
+        <div style="background:#fff; border-radius:12px; border:1px solid var(--border); padding:20px;">
+          <h3 style="font-size:14px; font-weight:700; color:var(--heading); margin:0 0 16px 0;">All Current Assignments</h3>
+          <div id="assign-overview-list">
+            <p style="text-align:center; color:var(--subtext); font-size:13px; padding:20px 0;">Loading...</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
     <!-- ============================================== -->
     <!-- REPORTS VIEW                                   -->
     <!-- ============================================== -->
@@ -3064,67 +3113,6 @@ function pollDashboardData() {
           const statusEmoji = { pending: '⏳', preparing: '👨‍🍳', ready: '🔔' };
           tbody.innerHTML = data.live_orders.map(order => {
             const statusLabels = { pending: 'Pending', preparing: 'Preparing', ready: 'Ready!' };
-            const statusClasses = { pending: 'pending', preparing: 'preparing', ready: 'ready' };
-            const emoji = statusEmoji[order.status] || '⏳';
-            const statusText = statusLabels[order.status] || order.status;
-            const statusClass = statusClasses[order.status] || 'pending';
-            const timeAgo = (() => {
-              const diff = Math.floor((Date.now() - new Date(order.order_date).getTime()) / 60000);
-              return diff < 1 ? 'just now' : diff + ' min ago';
-            })();
-            return `
-              <tr>
-                <td><b style="color:var(--primary);">#${order.order_id}</b><br><span style="font-size:10px;color:var(--muted);">${timeAgo}</span></td>
-                <td><span style="font-weight:700;">Table ${order.table_number}</span></td>
-                <td style="font-weight:600;">Rs. ${parseFloat(order.total_amount).toFixed(2)}</td>
-                <td><span class="status-badge ${statusClass}">${emoji} ${statusText}</span></td>
-              </tr>
-            `;
-          }).join('');
-        }
-
-        // 3. Update category doughnut chart
-        if (data.chart.labels && data.chart.labels.length > 0) {
-          const catColors = ['#FF4B2B', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
-          initCategoryChart(data.chart.labels, data.chart.data, catColors.slice(0, data.chart.labels.length));
-        } else {
-          initCategoryChart(['No Data'], [1], ['#E2E4ED']);
-        }
-
-        // 4. Update popular items bar chart
-        if (data.items_chart && data.items_chart.labels && data.items_chart.labels.length > 0) {
-          const barColors = [
-            'rgba(255,75,43,0.85)', 'rgba(59,130,246,0.85)',
-            'rgba(16,185,129,0.85)', 'rgba(245,158,11,0.85)', 'rgba(139,92,246,0.85)'
-          ];
-          initItemsChart(
-            data.items_chart.labels,
-            data.items_chart.data,
-            barColors.slice(0, data.items_chart.labels.length)
-          );
-        } else {
-          initItemsChart(['No Data'], [0], ['#E2E4ED']);
-        }
-      }
-    })
-    .catch(err => {
-      console.warn("Failed to poll dashboard data:", err);
-    });
-}
-
-fetch('/api/check_session')
-  .then(r => r.json())
-  .then(data => {
-    if (data.logged_in && data.role === 'admin') {
-      const name = data.username;
-      document.getElementById('av-username').textContent = name;
-      document.getElementById('av-initials').textContent = name.substring(0,2).toUpperCase();
-    } else {
-      if (localStorage.getItem('role') !== 'admin') {
-        localStorage.setItem('role', 'admin');
-        localStorage.setItem('username', 'Admin');
-        localStorage.setItem('user_id', '0');
-      }
       const uname = localStorage.getItem('username') || 'Admin';
       const uEl = document.getElementById('av-username');
       const iEl = document.getElementById('av-initials');
@@ -3160,243 +3148,6 @@ let currentModalOrderId = null;
 
 // Status badge helper
 function getStatusBadge(status) {
-  const map = {
-    pending:   { cls: 'pending',   label: '<i data-feather="clock" style="width:14px;height:14px"></i> Pending'   },
-    preparing: { cls: 'preparing', label: '<i data-feather="loader" style="width:14px;height:14px"></i> Preparing' },
-    ready:     { cls: 'ready',     label: '<i data-feather="bell" style="width:14px;height:14px"></i> Ready'     },
-    served:    { cls: 'served',    label: '<i data-feather="check" style="width:14px;height:14px"></i> Served'    },
-    cancelled: { cls: 'cancelled', label: '<i data-feather="x-circle" style="width:14px;height:14px"></i> Cancelled' },
-  };
-  const s = map[status] || { cls: '', label: status };
-  return `<span class="status-badge ${s.cls}">${s.label}</span>`;
-}
-
-// ���� Format timestamp ����������������������������������������������������������������������������������
-function fmtTime(ts) {
-  if (!ts) return '�';
-  const d = new Date(ts);
-  return d.toLocaleString('en-US', {
-    month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit', hour12: true
-  });
-}
-
-// ���� Render orders into the table ����������������������������������������������������������
-function renderOrdersTable(orders) {
-  const tbody = document.getElementById('ord-table-body');
-  const countBadge = document.getElementById('ord-table-count');
-  if (!tbody) return;
-
-  countBadge.textContent = orders.length + ' order' + (orders.length !== 1 ? 's' : '');
-
-  if (orders.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="no-data-msg">No orders found matching your criteria.</td></tr>';
-    return;
-  }
-
-  const isCancelable = (status) => !['served', 'cancelled'].includes(status);
-
-  tbody.innerHTML = orders.map(o => `
-    <tr>
-      <td><span class="ord-id">#ORD-${String(o.order_id).padStart(4,'0')}</span></td>
-      <td><span class="ord-table-num">${o.table_number}</span></td>
-      <td><span class="ord-token">${o.customer_token || '�'}</span></td>
-      <td><div class="ord-items-text" title="${o.items_summary || ''}">${o.items_summary || '<em style="opacity:0.5">No items</em>'}</div></td>
-      <td style="font-weight:700;color:var(--heading);">Rs.&nbsp;${parseFloat(o.total_amount).toFixed(2)}</td>
-      <td style="color:var(--muted);font-size:12.5px;">${fmtTime(o.order_date)}</td>
-      <td>${getStatusBadge(o.status)}</td>
-      <td>
-        <div class="ord-actions">
-          <button class="btn-view-detail" onclick="openOrderDetail(${o.order_id})">
-            <i data-feather="eye" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"></i> Details
-          </button>
-          <button class="btn-cancel-ord"
-            onclick="cancelOrderInline(${o.order_id}, this)"
-            ${isCancelable(o.status) ? '' : 'disabled'}>
-            <i data-feather="x" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"></i> Cancel
-          </button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
-  if (window.feather) feather.replace();
-}
-
-// ���� Update KPI cards ����������������������������������������������������������������������������������
-function updateOrdersKPI(kpi) {
-  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-  set('ord-kpi-total',     kpi.total_today);
-  set('ord-kpi-pending',   kpi.pending_count);
-  set('ord-kpi-preparing', kpi.preparing_count);
-  set('ord-kpi-completed', kpi.completed_count);
-}
-
-// ���� Fetch orders from server ������������������������������������������������������������������
-function fetchOrdersData() {
-  const search = (document.getElementById('ord-search-input')?.value || '').trim();
-  const status = document.getElementById('ord-status-filter')?.value || 'all';
-
-  let url = '/api/admin?action=fetch_orders';
-  if (status && status !== 'all') url += '&status=' + encodeURIComponent(status);
-  if (search) url += '&search=' + encodeURIComponent(search);
-
-  fetch(url)
-    .then(r => r.json())
-    .then(data => {
-      if (data.success) {
-        ordersDataCache = data.orders;
-        renderOrdersTable(ordersDataCache);
-        updateOrdersKPI(data.kpi);
-      }
-    })
-    .catch(err => console.warn('Orders fetch error:', err));
-}
-
-// ���� Start / stop polling ��������������������������������������������������������������������������
-function startOrdersPolling() {
-  if (ordersInterval) clearInterval(ordersInterval);
-  fetchOrdersData();
-  ordersInterval = setInterval(fetchOrdersData, 5000);
-}
-
-function stopOrdersPolling() {
-  if (ordersInterval) { clearInterval(ordersInterval); ordersInterval = null; }
-}
-
-// ���� Search + filter listeners ����������������������������������������������������������������
-const ordSearchInput  = document.getElementById('ord-search-input');
-const ordStatusFilter = document.getElementById('ord-status-filter');
-const ordRefreshBtn   = document.getElementById('ord-refresh-btn');
-
-if (ordSearchInput)  ordSearchInput.addEventListener('input',  fetchOrdersData);
-if (ordStatusFilter) ordStatusFilter.addEventListener('change', fetchOrdersData);
-if (ordRefreshBtn)   ordRefreshBtn.addEventListener('click',   fetchOrdersData);
-
-// ���� Inline cancel (from table row) ������������������������������������������������������
-function cancelOrderInline(orderId, btn) {
-  if (!confirm(`Cancel Order #ORD-${String(orderId).padStart(4,'0')}? This cannot be undone.`)) return;
-  btn.disabled = true;
-  btn.textContent = '⬦';
-  fetch('/api/admin?action=cancel_order', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ order_id: orderId })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.success) fetchOrdersData();
-    else alert(data.message);
-  })
-  .catch(err => console.error(err));
-}
-
-// ���� ORDER DETAIL MODAL ��������������������������������������������������������������������������������
-const ordDetailOverlay   = document.getElementById('ordDetailOverlay');
-const ordModalCloseBtn   = document.getElementById('ordModalCloseBtn');
-const ordModalFooterClose= document.getElementById('ordModalFooterClose');
-const modalCancelOrderBtn= document.getElementById('modalCancelOrderBtn');
-
-function openOrderDetail(orderId) {
-  currentModalOrderId = orderId;
-  // Show loading state
-  document.getElementById('modalOrdId').textContent = `#ORD-${String(orderId).padStart(4,'0')}`;
-  document.getElementById('modalOrdTable').textContent   = '⬦';
-  document.getElementById('modalOrdToken').textContent   = '⬦';
-  document.getElementById('modalOrdTime').textContent    = '⬦';
-  document.getElementById('modalOrdStatusWrap').innerHTML= '';
-  document.getElementById('modalItemsList').innerHTML    = '<div style="padding:20px;text-align:center;color:var(--muted);">Loading⬦</div>';
-  document.getElementById('modalSubtotal').textContent   = 'Rs. �';
-  document.getElementById('modalTax').textContent        = 'Rs. �';
-  document.getElementById('modalGrandTotal').textContent = 'Rs. �';
-
-  ordDetailOverlay.classList.add('open');
-  document.body.style.overflow = 'hidden';
-
-  fetch(`/api/admin?action=order_details&order_id=${orderId}`)
-    .then(r => r.json())
-    .then(data => {
-      if (!data.success) { alert(data.message); closeOrderDetail(); return; }
-
-      document.getElementById('modalOrdTable').textContent   = 'Table ' + data.table_number;
-      document.getElementById('modalOrdToken').textContent   = data.customer_token || '�';
-      document.getElementById('modalOrdTime').textContent    = fmtTime(data.order_date);
-      document.getElementById('modalOrdStatusWrap').innerHTML= getStatusBadge(data.status);
-
-      // Render item rows
-      const itemsHtml = data.items.length === 0
-        ? '<div style="padding:20px;text-align:center;color:var(--muted);font-style:italic;">No items found.</div>'
-        : data.items.map(item => `
-            <div class="receipt-item-row">
-              <div class="receipt-item-name">${item.item_name}</div>
-              <div style="text-align:center;color:var(--muted);">${item.quantity}</div>
-              <div style="text-align:right;color:var(--muted);">Rs.${parseFloat(item.unit_price).toFixed(2)}</div>
-              <div style="text-align:right;font-weight:700;color:var(--heading);">Rs.${parseFloat(item.subtotal).toFixed(2)}</div>
-            </div>
-          `).join('');
-
-      document.getElementById('modalItemsList').innerHTML    = itemsHtml;
-      document.getElementById('modalSubtotal').textContent   = 'Rs. ' + parseFloat(data.subtotal).toFixed(2);
-      document.getElementById('modalTax').textContent        = 'Rs. ' + parseFloat(data.tax).toFixed(2);
-      document.getElementById('modalGrandTotal').textContent = 'Rs. ' + parseFloat(data.total).toFixed(2);
-
-      // Toggle cancel button
-      const canCancel = !['served', 'cancelled'].includes(data.status);
-      modalCancelOrderBtn.disabled = !canCancel;
-      modalCancelOrderBtn.style.display = canCancel ? '' : 'none';
-    })
-    .catch(err => console.error('Order detail fetch error:', err));
-}
-
-function closeOrderDetail() {
-  ordDetailOverlay.classList.remove('open');
-  document.body.style.overflow = '';
-  currentModalOrderId = null;
-}
-
-if (ordModalCloseBtn)    ordModalCloseBtn.addEventListener('click',    closeOrderDetail);
-if (ordModalFooterClose) ordModalFooterClose.addEventListener('click', closeOrderDetail);
-if (ordDetailOverlay)    ordDetailOverlay.addEventListener('click', (e) => {
-  if (e.target === ordDetailOverlay) closeOrderDetail();
-});
-
-if (modalCancelOrderBtn) {
-  modalCancelOrderBtn.addEventListener('click', () => {
-    if (!currentModalOrderId) return;
-    const id = currentModalOrderId;
-    if (!confirm(`Cancel Order #ORD-${String(id).padStart(4,'0')}? This cannot be undone.`)) return;
-    modalCancelOrderBtn.disabled = true;
-    modalCancelOrderBtn.textContent = 'Cancelling⬦';
-    fetch('/api/admin?action=cancel_order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order_id: id })
-    })
-    .then(r => r.json())
-    .then(data => {
-      if (data.success) {
-        closeOrderDetail();
-        fetchOrdersData();
-      } else {
-        alert(data.message);
-        modalCancelOrderBtn.disabled = false;
-        modalCancelOrderBtn.textContent = '�xa� Cancel / Void Order';
-      }
-    })
-    .catch(err => console.error(err));
-  });
-}
-
-// Close modal on Escape key (supplement existing Escape handler)
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && ordDetailOverlay && ordDetailOverlay.classList.contains('open')) {
-    closeOrderDetail();
-  }
-});
-</script>
-
-<!-- QR Code Popup Modal -->
-<div class="qr-modal-overlay" id="qrModalOverlay" onclick="closeQRModal(event)">
-  <div class="qr-modal-box" id="qrModalBox">
     <button class="qr-modal-close" onclick="closeQRModal()">&times;</button>
     <div class="qr-modal-table-num" id="qrModalTableNum">Table 1</div>
     <div class="qr-modal-table-sub">Scan to order from this table</div>
@@ -3707,6 +3458,280 @@ if (btnExportPdf) {
         .subscribe();
     }
   })();
+</script>
+</body>
+</html>
+
+<script>
+// ============================================================
+// ASSIGNMENTS VIEW — Waiter Table Assignment Management
+// ============================================================
+
+const navAssignments  = document.getElementById('nav-assignments');
+const assignmentsView = document.getElementById('assignments-view');
+
+// Extend switchView to include assignments
+const _origSwitchView = switchView;
+window.switchView = function(view) {
+  if (view !== 'assignments') {
+    if (assignmentsView) assignmentsView.style.display = 'none';
+    _origSwitchView(view);
+    return;
+  }
+  // Hide all other views
+  ['dashboard-view','menu-view','staff-view','tables-qr-view','orders-view','reports-view']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.style.display='none'; });
+  document.querySelectorAll('.s-menu li').forEach(li => li.classList.remove('active'));
+  stopDashboardPolling();
+  stopOrdersPolling();
+  assignmentsView.style.display = 'block';
+  document.querySelector('.topbar .title h1').textContent = 'Waiter Assignments';
+  navAssignments.parentElement.classList.add('active');
+  loadAssignmentView();
+};
+
+if (navAssignments) {
+  navAssignments.addEventListener('click', (e) => { e.preventDefault(); switchView('assignments'); });
+}
+
+// ── State ──────────────────────────────────────────────────
+let _assignWaiters  = [];   // [{staff_id, full_name, is_online, assigned_tables:[]}]
+let _assignAllTables = [];  // [1,2,3,...] from tables_qr
+let _assignSelected  = new Set(); // currently checked table numbers
+let _assignWaiterId  = null;
+
+/**
+ * Entry point: loads waiters + tables + overview when the view opens.
+ */
+async function loadAssignmentView() {
+  await Promise.all([loadAssignmentWaiters(), loadAssignmentTables()]);
+  renderAssignTableGrid();
+  loadAssignmentOverview();
+  feather.replace();
+}
+
+/**
+ * Fetches all waiters with their current assigned tables.
+ */
+async function loadAssignmentWaiters() {
+  try {
+    const res  = await fetch('/api/waiter_assignment?action=fetch_all_waiters_with_tables');
+    const data = await res.json();
+    _assignWaiters = data.data || [];
+
+    const sel = document.getElementById('assign-waiter-select');
+    sel.innerHTML = '<option value="">-- Choose a waiter --</option>';
+    _assignWaiters.forEach(w => {
+      const opt = document.createElement('option');
+      opt.value = w.staff_id;
+      opt.textContent = w.full_name;
+      sel.appendChild(opt);
+    });
+  } catch(e) { console.error('[Assignments] loadWaiters:', e); }
+}
+
+/**
+ * Fetches distinct table numbers from tables_qr.
+ */
+async function loadAssignmentTables() {
+  try {
+    const res = await fetch('/api/qr?action=fetch');
+    const data = await res.json();
+    const tables = (data.data || data || []).map(t => parseInt(t.table_number || t.id || 0)).filter(Boolean);
+    // Deduplicate + sort; fall back to 1-20 if none configured
+    _assignAllTables = tables.length > 0
+      ? [...new Set(tables)].sort((a,b) => a-b)
+      : Array.from({length:20}, (_,i) => i+1);
+  } catch(e) {
+    _assignAllTables = Array.from({length:20}, (_,i) => i+1);
+  }
+}
+
+/**
+ * Called when the waiter dropdown changes.
+ */
+function onWaiterSelectChange() {
+  const sel = document.getElementById('assign-waiter-select');
+  _assignWaiterId = sel.value ? parseInt(sel.value) : null;
+  _assignSelected = new Set();
+
+  // Pre-populate with this waiter's current tables
+  if (_assignWaiterId) {
+    const waiter = _assignWaiters.find(w => w.staff_id === _assignWaiterId);
+    if (waiter) {
+      waiter.assigned_tables.forEach(t => _assignSelected.add(t));
+      // Show online/offline badge
+      const badge = document.getElementById('assign-waiter-status');
+      badge.style.display = 'inline-block';
+      badge.textContent   = waiter.is_online ? '🟢 Online' : '🔴 Offline';
+      badge.style.background = waiter.is_online ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.1)';
+      badge.style.color      = waiter.is_online ? '#10b981' : '#ef4444';
+      badge.style.border     = waiter.is_online ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(239,68,68,0.2)';
+    }
+  } else {
+    document.getElementById('assign-waiter-status').style.display = 'none';
+  }
+
+  renderAssignTableGrid();
+}
+
+/**
+ * Renders the interactive table grid.
+ */
+function renderAssignTableGrid() {
+  const grid = document.getElementById('assign-table-grid');
+  const msg  = document.getElementById('assign-no-waiter-msg');
+  if (!grid) return;
+
+  if (!_assignWaiterId) {
+    grid.innerHTML = '';
+    msg.style.display = 'block';
+    return;
+  }
+  msg.style.display = 'none';
+
+  // Which tables are assigned to OTHER waiters (so we can show a conflict indicator)
+  const otherAssigned = {};
+  _assignWaiters.forEach(w => {
+    if (w.staff_id === _assignWaiterId) return;
+    w.assigned_tables.forEach(t => {
+      if (!otherAssigned[t]) otherAssigned[t] = [];
+      otherAssigned[t].push(w.full_name);
+    });
+  });
+
+  grid.innerHTML = _assignAllTables.map(t => {
+    const isSelected = _assignSelected.has(t);
+    const sharedWith = otherAssigned[t] || [];
+    const sharedTip  = sharedWith.length ? ` (shared with ${sharedWith.join(', ')})` : '';
+
+    return `<div
+      id="atg-${t}"
+      onclick="toggleTableAssign(${t})"
+      title="Table ${t}${sharedTip}"
+      style="
+        padding:14px 6px;
+        text-align:center;
+        border-radius:10px;
+        cursor:pointer;
+        font-weight:700;
+        font-size:13px;
+        border:2px solid ${isSelected ? '#6366f1' : 'var(--border)'};
+        background:${isSelected ? 'rgba(99,102,241,0.12)' : '#F8F9FD'};
+        color:${isSelected ? '#6366f1' : 'var(--subtext)'};
+        transition:all 0.2s;
+        position:relative;
+      ">
+      T${t}
+      ${sharedWith.length ? '<span style="position:absolute;top:4px;right:6px;font-size:9px;color:#f59e0b;">●</span>' : ''}
+    </div>`;
+  }).join('');
+}
+
+/**
+ * Toggles a table's selection in the grid.
+ */
+function toggleTableAssign(tableNum) {
+  if (!_assignWaiterId) return;
+  if (_assignSelected.has(tableNum)) {
+    _assignSelected.delete(tableNum);
+  } else {
+    _assignSelected.add(tableNum);
+  }
+  renderAssignTableGrid();
+}
+
+/**
+ * Saves the current selection to the database.
+ */
+async function saveAssignments() {
+  if (!_assignWaiterId) {
+    alert('Please select a waiter first.');
+    return;
+  }
+  try {
+    const res = await fetch('/api/waiter_assignment?action=assign_tables', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        waiter_id: _assignWaiterId,
+        table_numbers: [..._assignSelected]
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      // Update local state
+      const waiter = _assignWaiters.find(w => w.staff_id === _assignWaiterId);
+      if (waiter) waiter.assigned_tables = [..._assignSelected];
+      loadAssignmentOverview();
+      showAssignToast('✅ Assignments saved successfully!');
+    } else {
+      alert('Save failed: ' + (data.message || 'Unknown error'));
+    }
+  } catch(e) {
+    alert('Network error: ' + e.message);
+  }
+}
+
+/**
+ * Clears all assignments for the selected waiter.
+ */
+async function clearAssignments() {
+  if (!_assignWaiterId) { alert('Please select a waiter first.'); return; }
+  if (!confirm('Remove all table assignments for this waiter?')) return;
+  _assignSelected.clear();
+  await saveAssignments();
+}
+
+/**
+ * Renders the overview list of all waiters and their tables on the right panel.
+ */
+function loadAssignmentOverview() {
+  const el = document.getElementById('assign-overview-list');
+  if (!el) return;
+
+  if (_assignWaiters.length === 0) {
+    el.innerHTML = '<p style="text-align:center;color:var(--subtext);font-size:13px;">No waiters found.</p>';
+    return;
+  }
+
+  el.innerHTML = _assignWaiters.map(w => {
+    const chipHtml = w.assigned_tables.length
+      ? w.assigned_tables.map(t => `<span style="padding:2px 9px;border-radius:100px;font-size:11px;font-weight:700;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);color:#6366f1;">T${t}</span>`).join('')
+      : '<span style="font-size:12px;color:var(--subtext);font-style:italic;">No tables assigned</span>';
+    const dot = w.is_online
+      ? '<span style="width:7px;height:7px;border-radius:50%;background:#10b981;display:inline-block;margin-right:5px;"></span>'
+      : '<span style="width:7px;height:7px;border-radius:50%;background:#94a3b8;display:inline-block;margin-right:5px;"></span>';
+    return `
+      <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
+        <div style="width:34px;height:34px;border-radius:50%;background:#ede9fe;color:#6366f1;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;">
+          ${w.full_name.substring(0,2).toUpperCase()}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:13px;color:var(--heading);display:flex;align-items:center;gap:6px;">
+            ${dot}${w.full_name}
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">${chipHtml}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/**
+ * Shows a brief toast notification inside the assignments view.
+ */
+function showAssignToast(msg) {
+  let toast = document.getElementById('assign-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'assign-toast';
+    toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1e1b4b;color:#c7d2fe;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,0.2);opacity:0;transform:translateY(8px);transition:all 0.3s;';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  requestAnimationFrame(() => { toast.style.opacity='1'; toast.style.transform='translateY(0)'; });
+  setTimeout(() => { toast.style.opacity='0'; toast.style.transform='translateY(8px)'; }, 3000);
+}
 </script>
 </body>
 </html>

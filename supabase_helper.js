@@ -87,10 +87,27 @@
             const link = e.target.closest('a');
             if (link && link.getAttribute('href') === '/api/logout') {
                 e.preventDefault();
-                localStorage.removeItem('user_id');
-                localStorage.removeItem('username');
-                localStorage.removeItem('role');
-                window.location.href = 'index.html';
+                // Set waiter offline before logging out (so Edge Function sends SMS if offline)
+                const staffId = localStorage.getItem('staff_id');
+                const role = localStorage.getItem('role');
+                if (staffId && role === 'waiter') {
+                    fetch('/api/online_status?action=set_offline', {
+                        method: 'POST',
+                        body: JSON.stringify({})
+                    }).catch(() => {}).finally(() => {
+                        localStorage.removeItem('user_id');
+                        localStorage.removeItem('username');
+                        localStorage.removeItem('role');
+                        localStorage.removeItem('staff_id');
+                        window.location.href = 'index.html';
+                    });
+                } else {
+                    localStorage.removeItem('user_id');
+                    localStorage.removeItem('username');
+                    localStorage.removeItem('role');
+                    localStorage.removeItem('staff_id');
+                    window.location.href = 'index.html';
+                }
             }
         });
     });
@@ -163,6 +180,10 @@
                     localStorage.setItem('user_id', user.user_id);
                     localStorage.setItem('username', user.username);
                     localStorage.setItem('role', user.role);
+                    // Store staff_id for waiter online status tracking
+                    if (user.staff_id) {
+                        localStorage.setItem('staff_id', user.staff_id);
+                    }
 
                     let redirect = 'index.html';
                     if (user.role === 'admin') redirect = 'admin.html';
@@ -191,6 +212,7 @@
             localStorage.removeItem('user_id');
             localStorage.removeItem('username');
             localStorage.removeItem('role');
+            localStorage.removeItem('staff_id');
             return mockResponse({ success: true });
         }
 
@@ -515,6 +537,11 @@
                     const sessionId = parseInt(body.session_id || 0);
                     // Mark non-cancelled orders as served
                     await supabaseQuery(`orders?session_id=eq.${sessionId}&status=not.in.(served,cancelled)`, 'PATCH', { status: 'served' });
+                    // Mark unpaid and non-cancelled orders as paid physically (cash)
+                    await supabaseQuery(`orders?session_id=eq.${sessionId}&payment_status=neq.paid&status=neq.cancelled`, 'PATCH', {
+                        payment_status: 'paid',
+                        payment_method: 'cash'
+                    });
                     // Close session
                     await supabaseQuery(`table_sessions?session_id=eq.${sessionId}`, 'PATCH', {
                         status: 'closed',
@@ -1232,6 +1259,146 @@
                 }
             } catch(e) {
                 console.error(e);
+                return mockResponse({ success: false, message: e.message }, 500);
+            }
+        }
+
+        // ==========================================
+        // 11. waiter_assignment (Admin: assign tables to waiters)
+        // ==========================================
+        if (path === 'waiter_assignment') {
+            try {
+                if (action === 'fetch_assignments') {
+                    // Returns all assignments joined with staff info
+                    const rows = await supabaseQuery(
+                        'waiter_table_assignments?select=id,waiter_id,table_number,assigned_at,staff(staff_id,full_name,role)&order=table_number.asc'
+                    );
+                    return mockResponse({ success: true, data: rows });
+
+                } else if (action === 'assign_tables') {
+                    // body: { waiter_id, table_numbers: [3,4,5] }
+                    const waiterId = parseInt(body.waiter_id || 0);
+                    const tableNumbers = Array.isArray(body.table_numbers) ? body.table_numbers : [];
+                    if (!waiterId) return mockResponse({ success: false, message: 'waiter_id required' }, 400);
+
+                    // Remove existing assignments for this waiter
+                    await supabaseQuery(
+                        `waiter_table_assignments?waiter_id=eq.${waiterId}`,
+                        'DELETE'
+                    );
+
+                    // Insert new assignments
+                    if (tableNumbers.length > 0) {
+                        const inserts = tableNumbers.map(tn => ({
+                            waiter_id: waiterId,
+                            table_number: parseInt(tn)
+                        }));
+                        await supabaseQuery('waiter_table_assignments', 'POST', inserts, {
+                            'Prefer': 'return=minimal'
+                        });
+                    }
+                    return mockResponse({ success: true, message: 'Tables assigned successfully.' });
+
+                } else if (action === 'remove_assignment') {
+                    // body: { waiter_id, table_number }
+                    const waiterId = parseInt(body.waiter_id || 0);
+                    const tableNum = parseInt(body.table_number || 0);
+                    if (!waiterId || !tableNum) return mockResponse({ success: false, message: 'waiter_id and table_number required' }, 400);
+                    await supabaseQuery(
+                        `waiter_table_assignments?waiter_id=eq.${waiterId}&table_number=eq.${tableNum}`,
+                        'DELETE'
+                    );
+                    return mockResponse({ success: true, message: 'Assignment removed.' });
+
+                } else if (action === 'fetch_my_tables') {
+                    // Returns table numbers assigned to the currently logged-in waiter
+                    const userId = parseInt(localStorage.getItem('user_id') || '0');
+                    if (!userId) return mockResponse({ success: true, data: [] });
+
+                    // Look up staff_id from users table via user_id
+                    const staffIdStored = localStorage.getItem('staff_id');
+                    let staffId = staffIdStored ? parseInt(staffIdStored) : null;
+
+                    if (!staffId) {
+                        const userRows = await supabaseQuery(`users?user_id=eq.${userId}&select=staff_id`);
+                        staffId = userRows.length > 0 ? userRows[0].staff_id : null;
+                    }
+
+                    if (!staffId) return mockResponse({ success: true, data: [] });
+
+                    const rows = await supabaseQuery(
+                        `waiter_table_assignments?waiter_id=eq.${staffId}&select=table_number&order=table_number.asc`
+                    );
+                    const tableNumbers = rows.map(r => r.table_number);
+                    return mockResponse({ success: true, data: tableNumbers });
+
+                } else if (action === 'fetch_all_waiters_with_tables') {
+                    // Returns each waiter and their assigned tables (for admin overview)
+                    const waiters = await supabaseQuery(
+                        "staff?role=eq.waiter&select=staff_id,full_name,phone_number,is_online&order=full_name.asc"
+                    );
+                    const assignments = await supabaseQuery(
+                        'waiter_table_assignments?select=waiter_id,table_number&order=table_number.asc'
+                    );
+                    const result = waiters.map(w => ({
+                        ...w,
+                        assigned_tables: assignments
+                            .filter(a => a.waiter_id === w.staff_id)
+                            .map(a => a.table_number)
+                    }));
+                    return mockResponse({ success: true, data: result });
+                }
+
+            } catch(e) {
+                console.error('[waiter_assignment]', e);
+                return mockResponse({ success: false, message: e.message }, 500);
+            }
+        }
+
+        // ==========================================
+        // 12. online_status (Waiter: set/get is_online on staff table)
+        // ==========================================
+        if (path === 'online_status') {
+            try {
+                // Resolve staff_id from localStorage or users table
+                const getStaffId = async () => {
+                    let staffId = localStorage.getItem('staff_id')
+                        ? parseInt(localStorage.getItem('staff_id'))
+                        : null;
+                    if (!staffId) {
+                        const userId = parseInt(localStorage.getItem('user_id') || '0');
+                        if (!userId) return null;
+                        const userRows = await supabaseQuery(`users?user_id=eq.${userId}&select=staff_id`);
+                        staffId = userRows.length > 0 ? userRows[0].staff_id : null;
+                        if (staffId) localStorage.setItem('staff_id', staffId);
+                    }
+                    return staffId;
+                };
+
+                if (action === 'set_online') {
+                    const staffId = await getStaffId();
+                    if (!staffId) return mockResponse({ success: false, message: 'Not authenticated' }, 401);
+                    await supabaseQuery(`staff?staff_id=eq.${staffId}`, 'PATCH', { is_online: true });
+                    return mockResponse({ success: true, is_online: true });
+
+                } else if (action === 'set_offline') {
+                    const staffId = await getStaffId();
+                    if (!staffId) return mockResponse({ success: false, message: 'Not authenticated' }, 401);
+                    await supabaseQuery(`staff?staff_id=eq.${staffId}`, 'PATCH', { is_online: false });
+                    return mockResponse({ success: true, is_online: false });
+
+                } else if (action === 'get_status') {
+                    const staffId = body.staff_id
+                        ? parseInt(body.staff_id)
+                        : await getStaffId();
+                    if (!staffId) return mockResponse({ success: true, is_online: false });
+                    const rows = await supabaseQuery(`staff?staff_id=eq.${staffId}&select=is_online`);
+                    const isOnline = rows.length > 0 ? rows[0].is_online : false;
+                    return mockResponse({ success: true, is_online: isOnline });
+                }
+
+            } catch(e) {
+                console.error('[online_status]', e);
                 return mockResponse({ success: false, message: e.message }, 500);
             }
         }

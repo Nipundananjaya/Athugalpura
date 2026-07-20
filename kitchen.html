@@ -300,6 +300,8 @@ header {
     // --- Init ---
     // SUPABASE_URL and SUPABASE_KEY are exposed globally by supabase_helper.js
     let supabaseClient = null;
+
+    // Connect to Supabase Realtime socket channel to receive live DB updates instantly
     function initRealtimeClient() {
       if (window.supabase && window.SUPABASE_URL && window.SUPABASE_KEY) {
         try {
@@ -320,10 +322,11 @@ header {
       }
     }
 
+    // Initialize the KDS page timers, fetch first orders, and initialize fallbacks
     function init() {
       pollOrders();
-      setInterval(updateClock, 1000);
-      setInterval(updateElapsedTimers, 5000);
+      setInterval(updateClock, 1000); // Update clock every 1 second
+      setInterval(updateElapsedTimers, 5000); // Check order elapsed times every 5 seconds
       // Fallback poll every 5s in case realtime is not available
       window._kdsFallbackPoll = setInterval(pollOrders, 5000);
       document.body.addEventListener('click', () => {
@@ -333,6 +336,7 @@ header {
       setTimeout(initRealtimeClient, 800);
     }
     
+    // Sums up all the items that are currently in preparation across all tables
     function openAggregationPanel() {
       document.getElementById('panel-aggregation').classList.add('open');
       const aggregation = {};
@@ -357,10 +361,12 @@ header {
       document.getElementById('list-aggregation').innerHTML = listHtml || 'No items in prep.';
     }
 
+    // Update the live clock inside KDS top bar
     function updateClock() {
       document.getElementById('live-clock').textContent = new Date().toLocaleTimeString();
     }
 
+    // Synthesize note sequence when a new order arrives
     function playChime() {
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -380,6 +386,8 @@ header {
 
     // --- Data Fetch ---
     let pollRetryCount = 0;
+    
+    // Fetch all active orders from the kitchen api endpoint
     function pollOrders() {
       const grid = document.getElementById('kds-grid');
       if (activeOrders.length === 0) {
@@ -395,8 +403,8 @@ header {
           pollRetryCount = 0;
           if (data.success) {
             activeOrders = data.data || [];
-            processData();
-            renderKDS();
+            processData(); // detect new orders to ring chime
+            renderKDS(); // render visual tickets
           } else {
             showKDSError('Server error: ' + (data.message || 'Unknown'));
           }
@@ -409,6 +417,7 @@ header {
         });
     }
 
+    // Display a full-screen retry layout when DB fetch fails
     function showKDSError(msg) {
       if (activeOrders.length === 0) {
         document.getElementById('kds-grid').innerHTML = `
@@ -422,6 +431,7 @@ header {
       console.error('[Kitchen]', msg);
     }
 
+    // Identify new orders to trigger chimes, and build station filters
     function processData() {
       let hasNew = false;
       let newCategories = new Set();
@@ -436,7 +446,7 @@ header {
       if (hasNew && !isInitialLoad) playChime();
       isInitialLoad = false;
 
-      // Update Station Filter
+      // Update Station Filter options
       const select = document.getElementById('station-filter');
       newCategories.forEach(cat => {
         if (!categories.has(cat)) {
@@ -448,27 +458,32 @@ header {
       });
     }
 
+    // Calculate elapsed time from placement timestamp
     function getMinutes(ts) {
       return Math.floor((new Date() - new Date(ts.replace(' ', 'T'))) / 60000);
     }
     
+    // Format elapsed timestamp to string
     function formatTime(ts) {
       const m = getMinutes(ts); return m < 1 ? 'Just now' : `${m}m ago`;
     }
 
+    // Periodically update the elapsed minutes badge on ticket headers
     function updateElapsedTimers() {
       document.querySelectorAll('.ticket-time').forEach(el => {
         const ts = el.getAttribute('data-ts');
         if (ts) {
           const m = getMinutes(ts);
           el.innerHTML = `<i data-feather="clock" style="width:14px;"></i> ${formatTime(ts)}`;
-          if (m >= 15) el.closest('.ticket-card').classList.add('overdue');
+          if (m >= 15) el.closest('.ticket-card').classList.add('overdue'); // Over 15 mins turns orange/red
         }
       });
       feather.replace();
     }
 
     // --- API Actions ---
+
+    // Update status of a single dish item (e.g. pending, preparing, ready)
     function updateItem(orderItemId, status) {
       fetch('/api/kitchen?action=update_item_status', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -476,13 +491,15 @@ header {
       }).then(() => pollOrders());
     }
 
-        function markReady(orderId) {
+    // Mark the whole order as ready to serve
+    function markReady(orderId) {
       fetch('/api/kitchen?action=update_status', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ order_id: orderId, status: 'ready' })
       }).then(() => pollOrders());
     }
     
+    // Mark order status as fully served (delivered)
     function serveOrder(orderId) {
       fetch('/api/kitchen?action=update_status', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -490,7 +507,9 @@ header {
       }).then(() => pollOrders());
     }
 
-    // --- 86 Panel ---
+    // --- 86 Panel (Disable Sold Out Items) ---
+
+    // Fetch and show current menu items with stock toggles
     function open86Panel() {
       document.getElementById('panel-86').classList.add('open');
       fetch('/api/kitchen?action=fetch_menu_items').then(r=>r.json()).then(d => {
@@ -510,6 +529,7 @@ header {
       });
     }
 
+    // Toggle menu item availability in public stock list
     function toggle86(itemId, isAvailable) {
       fetch('/api/kitchen?action=toggle_item_availability', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -517,7 +537,9 @@ header {
       }).then(() => open86Panel());
     }
 
-    // --- Undo Modal ---
+    // --- Undo Modal (Recall served orders) ---
+
+    // Open recall panel to show list of recently cleared KDS tickets
     function openUndoModal() {
       document.getElementById('modal-undo').classList.add('open');
       fetch('/api/kitchen?action=fetch_recently_served').then(r=>r.json()).then(d => {
@@ -537,6 +559,7 @@ header {
       });
     }
 
+    // Bring back a served order ticket to active kitchen queue
     function undoOrder(orderId) {
       fetch('/api/kitchen?action=update_status', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -547,7 +570,9 @@ header {
       });
     }
 
-    // --- Render ---
+    // --- Render Ticket Cards ---
+
+    // Build the visual order grid based on station filters and active tickets
     function renderKDS() {
       const grid = document.getElementById('kds-grid');
       const activeFilter = document.getElementById('station-filter').value;
@@ -556,13 +581,13 @@ header {
       let renderedTickets = 0;
 
       activeOrders.forEach(order => {
-        // Filter items for this station
+        // Filter items matching currently selected prep station
         let displayItems = order.items;
         if (activeFilter !== 'ALL') {
           displayItems = displayItems.filter(i => i.category_name === activeFilter);
         }
         
-        if (displayItems.length === 0) return; // Skip ticket if no items for this station
+        if (displayItems.length === 0) return; // Skip ticket if no items match station filter
         renderedTickets++;
         
         let allReady = true;
@@ -573,6 +598,7 @@ header {
           let btnHtml = '';
           let rowClass = 'ticket-item';
           
+          // Action button based on dish prep state
           if (st === 'pending') {
             btnHtml = `<button class="item-status-btn btn-cook" onclick="updateItem(${item.order_item_id}, 'preparing')"><i data-feather="play" style="width:14px;"></i> Cook</button>`;
           } else if (st === 'preparing') {
@@ -627,6 +653,7 @@ header {
         grid.appendChild(card);
       });
       
+      // Empty state layout if no orders are in preparation
       if (renderedTickets === 0) {
         grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding: 100px; color: var(--text-muted);">
           <i data-feather="check-circle" style="width:64px;height:64px; margin-bottom:16px;"></i>
@@ -636,7 +663,7 @@ header {
       feather.replace();
     }
 
-    // Session guard — check login before starting
+    // Session validation checks on kitchen load
     function startKitchen() {
       fetch('/api/check_session')
         .then(r => r.json())
@@ -653,7 +680,7 @@ header {
           init();
         })
         .catch(() => {
-          // If check_session fails (no network), start anyway
+          // If check_session fails (offline environment), start in fallback mode
           console.warn('[KDS] Session check failed. Starting in offline mode.');
           init();
         });

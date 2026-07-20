@@ -1,0 +1,400 @@
+================================================================================
+                                    PAGE 01
+                                  TITLE PAGE
+================================================================================
+
+            ATHUGALPURA RESTAURANT – SMARTSERVE ORDERING SYSTEM
+            
+        A Real-Time QR-Based Restaurant Ordering and Management System
+
+
+                                  A Project Report
+                                     Submitted by
+                                     
+                          Student Name: [Your Name Here]
+                       Registration Number: [Your Reg No Here]
+                       
+                                     
+                                   Supervisor:
+                           Supervisor Name: [Supervisor Name]
+
+
+                      Department of Computer Technology
+                        Faculty of Technological Studies
+                            University of Athugalpura
+                            
+                                   July 2026
+
+================================================================================
+                                    PAGE 02
+                                ACKNOWLEDGEMENT
+================================================================================
+
+I would like to express my deepest gratitude to everyone who helped me complete 
+this project successfully. 
+
+First and foremost, I am extremely thankful to my supervisor, [Supervisor Name], 
+for their valuable guidance, constant encouragement, and helpful feedback 
+throughout the development of the "SmartServe" project. Their technical advice 
+helped me solve complex problems during database design and architectural planning.
+
+I also extend my sincere thanks to the Head of the Department and all the academic 
+staff members of the Department of Computer Technology for providing the 
+resources and knowledge necessary to build this system.
+
+Furthermore, I am grateful to my family members for their endless support, patience, 
+and encouragement during my studies.
+
+Finally, I want to thank my fellow classmates and friends who provided useful 
+suggestions and helped me test the application. Without their continuous support, 
+this project would not have been possible.
+
+
+[Your Name]
+July 2026
+
+================================================================================
+                                    PAGE 03
+                                   ABSTRACT
+================================================================================
+
+In the modern hospitality industry, traditional paper-based menu ordering systems 
+often lead to delays, human errors by wait staff, and poor customer service. 
+This project, titled "Athugalpura Restaurant – SmartServe," presents a serverless, 
+real-time QR-based food ordering and restaurant management system. The system 
+eliminates the need for physical menus and manual order taking.
+
+Using SmartServe, customers scan a table-specific QR code using their mobile 
+phones. This action launches a premium digital menu where they can browse 
+categories, check food availability in real-time, customize their choices, and 
+place orders directly. The system immediately routes these orders to a Kitchen 
+Display System (KDS) and a Waiter Dashboard. Waiters can assign themselves to 
+tables, accept manual payments, and coordinate delivery. An Admin Dashboard 
+allows managers to view live sales charts, edit menu items, update waiter shifts, 
+and export detailed PDF reports.
+
+Technically, the system is built with HTML5, CSS3, and JavaScript on the front 
+end. On the back end, it uses Supabase for database storage, real-time WebSocket 
+synchronization, and image storage. A unique "supabase_helper.js" script 
+intercepts standard PHP fetch calls, allowing the front end to communicate 
+directly with Supabase services. This design provides high speed, low latency, 
+and low hosting costs. The final system was successfully tested and proved to 
+enhance order accuracy and restaurant efficiency.
+
+================================================================================
+                                    PAGE 04
+                               TABLE OF CONTENTS
+================================================================================
+
+Title Page ................................................................ 01
+Acknowledgement ........................................................... 02
+Abstract .................................................................. 03
+Table of Contents ......................................................... 04
+Table of Figures .......................................................... 05
+
+Chapter 01: Introduction .................................................. 06
+  1.1 Purpose of the Project .............................................. 06
+  1.2 System Overview ..................................................... 06
+  1.3 Problem Statement and Proposed Solution ............................. 07
+  1.4 Goal and Vision ..................................................... 07
+
+Chapter 02: Requirement Specification ..................................... 08
+  2.1 Requirement Gathering Process ....................................... 08
+  2.2 System Functions (Functional Requirements) .......................... 08
+  2.3 Software Requirements ............................................... 09
+  2.4 Hardware Requirements ............................................... 09
+
+Chapter 03: Design ........................................................ 10
+  3.1 Front End Design (GUI Design) ....................................... 10
+  3.2 Database Design (Tables and ERD) .................................... 10
+  3.3 Architectural Design (Inputs, Processing, and Outputs) .............. 11
+
+References ................................................................ 12
+
+================================================================================
+                                    PAGE 05
+                               TABLE OF FIGURES
+================================================================================
+
+Figure 1: User Interface Navigation Flowchart .............................. 10
+          Description: Shows how different user roles (Customer, Waiter, 
+          Kitchen, Admin) navigate through the HTML pages.
+
+Figure 2: Entity-Relationship Diagram (ERD) ................................ 10
+          Description: Shows the database tables, fields, primary keys, 
+          foreign keys, and data relationships in the Supabase database.
+
+Figure 3: System Architecture Diagram ...................................... 11
+          Description: Illustrates the data flow between client browsers, the 
+          supabase_helper.js fetch interceptor, and Supabase cloud services.
+
+================================================================================
+                                    PAGE 06
+                            CHAPTER 01: INTRODUCTION
+================================================================================
+
+1.1 Purpose of the Project
+The primary purpose of this project is to develop an interactive, real-time, 
+QR-code-based food ordering and management system called "SmartServe" for 
+Athugalpura Restaurant. The system aims to automate the traditional ordering 
+process, reducing the time customers wait for service and minimizing mistakes 
+made during manual order entry. By using digital menus and real-time dashboard 
+communication, SmartServe connects customers, waiters, kitchen staff, and admins 
+into a single, coordinated workflow.
+
+1.2 System Overview
+SmartServe is a modern web-based application designed to run on mobile devices, 
+tablets, and desktop computers. It consists of four main interfaces:
+1. Customer Digital Menu (menu.html / customer menu.html): A mobile-responsive 
+   webpage that opens when customers scan a QR code at their table. It allows 
+   them to view categorized dishes with descriptions, check prices, and submit 
+   their orders directly to the kitchen.
+2. Waiter Dashboard (waiter.html): A mobile-friendly dashboard that shows active 
+   table sessions, incoming alerts, and assigned orders. Waiters use it to 
+   monitor table status, mark orders as served, and handle manual cash payments.
+3. Kitchen Display System (kitchen.html): A display dashboard for kitchen staff 
+   to view incoming orders in real-time, filter them by preparation station 
+   (e.g., Hot Kitchen or Drinks Bar), track cooking times, and update order 
+   status to "Ready."
+4. Admin Panel (admin.html): A desktop interface for managers. It provides live 
+   revenue charts, popular food trends, table QR code generation, menu item 
+   editing, staff management, and PDF report downloads.
+
+The entire application runs serverless on the client side, using a custom 
+Javascript interceptor ("supabase_helper.js") to route all HTTP fetch requests 
+directly to Supabase cloud database services.
+
+================================================================================
+                                    PAGE 07
+                            CHAPTER 01: INTRODUCTION
+================================================================================
+
+1.1 Purpose (continued from Page 06)
+In addition, this project demonstrates how existing legacy systems (originally 
+designed around local PHP endpoints) can be updated to utilize cloud-native, 
+real-time database technologies without rebuilding the entire user interface.
+
+1.3 Problem Statement
+Traditional dining in restaurants suffers from several inefficiencies:
+- Slow Service: Customers must wait for a waiter to bring paper menus, take 
+  their orders, and write them down. During busy hours, this causes delays.
+- Order Errors: Waiters can mishear orders or write down incorrect details, 
+  leading to food waste and customer complaints.
+- Kitchen Delays: Hand-written order tickets can get lost or delayed in transit 
+  from the dining table to the kitchen.
+- Lack of Business Analytics: Managers must compile paper bills manually to track 
+  sales, making it hard to identify top-selling items or calculate daily revenue.
+
+Proposed Solution:
+SmartServe solves these problems by:
+- Enabling self-service ordering via QR codes.
+- Direct digital transmission of orders from the table to the KDS, removing the 
+  middleman and preventing errors.
+- Real-time synchronization of order updates (e.g., "Preparing" or "Ready") 
+  to keep waiters and customers informed.
+- An analytical admin dashboard that automatically processes orders and builds 
+  dynamic charts for sales reports.
+
+1.4 Goal and Vision
+The goal of SmartServe is to build a fast, reliable, and user-friendly digital 
+platform that improves the dining experience. The vision is to replace paper 
+menus and manual tracking with a clean, modern, and cheap serverless system. 
+This will help local businesses like Athugalpura Restaurant increase table 
+turnover rates, lower operational costs, and boost overall customer satisfaction.
+
+================================================================================
+                                    PAGE 08
+                      CHAPTER 02: REQUIREMENT SPECIFICATION
+================================================================================
+
+2.1 Requirement Gathering Process
+To gather the necessary requirements for the SmartServe system, the following 
+methods were used:
+1. Interviews: Discussions were held with restaurant owners and managers to 
+   understand their daily challenges, menu structures, and the reports they need.
+2. Observations: We observed the ordering workflow at Athugalpura Restaurant 
+   during busy lunch hours. This helped identify bottlenecks in communication 
+   between waiters and kitchen staff.
+3. Competitor Analysis: Existing commercial restaurant management applications 
+   were studied to identify essential features, such as category filtering, real-
+   time alerts, and printable statistics reports.
+4. Feedback Loops: UI mockups were shown to staff members to check usability 
+   and collect suggestions on button sizes and dashboard layouts.
+
+2.2 System Functions (Functional Requirements)
+The system must support the following functional requirements grouped by user role:
+
+A. Customer Requirements:
+- Scan a table-specific QR code to open the correct menu session automatically.
+- Browse menu items categorized by food types (Appetizers, Mains, Drinks, etc.).
+- View descriptions, prices, availability, and images of food items.
+- Add items to a digital shopping cart and specify custom instructions.
+- Place an order and view the order status (Pending, Preparing, Ready, Served).
+
+B. Waiter Requirements:
+- Set online/offline status to manage active availability.
+- View a list of tables and assign themselves to specific table sessions.
+- Place orders manually on behalf of customers who prefer ordering face-to-face.
+- Receive instant visual alerts when an assigned table's food is "Ready."
+- Update order status to "Served" once food is delivered to the table.
+
+================================================================================
+                                    PAGE 09
+                      CHAPTER 02: REQUIREMENT SPECIFICATION
+================================================================================
+
+2.2 System Functions (continued from Page 08)
+
+C. Kitchen Requirements:
+- View incoming orders sorted by order time in real-time.
+- Select and filter orders by preparation station (e.g., Kitchen or Bar).
+- Update the status of order items from "Pending" to "Preparing" and "Ready."
+- View customer instructions (e.g., "no onions", "extra spicy") clearly.
+
+D. Admin Requirements:
+- Add, update, delete, and temporarily disable items in the digital menu.
+- Upload images for food items directly to the cloud storage system.
+- Manage staff user accounts (assign names, roles, and login credentials).
+- Create tables and generate their unique URL QR codes.
+- View sales statistics, popular items, and revenue charts in real-time.
+- Download weekly/monthly orders and financial summaries as PDF reports.
+
+2.3 Software Requirements
+- Development Tools & IDE: Visual Studio Code (VS Code) or similar editor.
+- Frontend Technologies: HTML5, CSS3 (Vanilla CSS with custom variable systems 
+  and responsive grids), JavaScript (ES6+).
+- Backend Services & Database: Supabase (PostgreSQL with Row Level Security 
+  enabled for table permissions, Supabase Storage for images, and Supabase 
+  Realtime Channels for WebSocket-based live updates).
+- JavaScript Libraries:
+  - Chart.js (for drawing revenue and food category charts).
+  - QRCode.js (for client-side QR code generation).
+  - jsPDF & html2canvas (for converting HTML report cards into PDF files).
+  - Feather Icons (for clean UI iconography).
+
+2.4 Hardware Requirements
+- Server-side: None (Serverless architecture hosted on Supabase Cloud infrastructure).
+- Client devices (Admin/Kitchen): Desktop PC or Tablet with a modern web 
+  browser (Google Chrome, Microsoft Edge, Safari) and a stable internet connection.
+- Client devices (Waiter/Customer): Android or iOS smartphone with an active 
+  camera (for QR scanning) and a mobile web browser.
+
+================================================================================
+                                    PAGE 10
+                               CHAPTER 03: DESIGN
+================================================================================
+
+3.1 Front End Design (GUI Design)
+The user interface is designed with a premium, modern aesthetic utilizing a 
+glassmorphism concept, vibrant accent colors, and responsive layouts. 
+- The Customer Menu utilizes a light theme (`#FDF9F7` background) with warm 
+  orange gradients (`#FF4B2B`) representing appetite and premium dining.
+- The Waiter and Kitchen Dashboards use dark themes (`#0f172a` and `#0B0F19`) 
+  to reduce eye strain for staff working long hours under artificial lights.
+- The Admin Panel provides a sidebar layout with a clean dashboard grid, showing 
+  live statistics using interactive charts.
+
+Navigation Flowchart:
+[Customer scans QR] ──> [Customer Menu] ──> [Places Order]
+                                                    │ (Real-time Broadcast)
+                                                    ▼
+[Staff Login] ───────> [Waiter Dashboard] <── [Supabase DB] ──> [Kitchen KDS]
+       │                        │                                   │
+       ├─(Admin Role)           ├─ Assigns Table                    ├─ Prepares Food
+       ▼                        ├─ Marks Served                     └─ Marks Ready
+[Admin Dashboard] ──────> [Generates QR Codes / PDF Reports]
+
+3.2 Database Design
+The relational database schema is hosted on Supabase (PostgreSQL). The tables, 
+primary keys (PK), and foreign keys (FK) are defined as follows:
+
+1. users (PK: user_id, FK: staff_id -> staff)
+   - Columns: user_id, username, password (bcrypt hash), role, staff_id
+2. staff (PK: staff_id)
+   - Columns: staff_id, name, phone, role, is_online (boolean)
+3. categories (PK: category_id)
+   - Columns: category_id, category_name
+4. menu_items (PK: item_id, FK: category_id -> categories)
+   - Columns: item_id, item_name, price, description, image_url, is_available
+5. orders (PK: order_id)
+   - Columns: order_id, table_number, order_date, status, total_amount
+6. order_items (PK: id, FK: order_id -> orders, FK: item_id -> menu_items)
+   - Columns: id, order_id, item_id, quantity, price
+7. table_sessions (PK: session_id)
+   - Columns: session_id, table_number, status, created_at
+8. waiter_table_assignments (PK: id, FK: waiter_id -> staff)
+   - Columns: id, waiter_id, table_number, assigned_at
+
+================================================================================
+                                    PAGE 11
+                               CHAPTER 03: DESIGN
+================================================================================
+
+3.3 Architectural Design
+SmartServe uses a serverless client-side architecture. Instead of running a 
+custom backend server (like a local Apache PHP server), the application runs 
+entirely in the user's web browser and communicates directly with Supabase. 
+
+The custom "supabase_helper.js" script intercepts all standard AJAX fetch 
+calls. When a page attempts to fetch data (e.g., requesting the food menu), 
+the helper intercepts the query, translates it into a Supabase REST API call, 
+and returns the database result in the expected format.
+
+System Architecture Diagram:
+┌────────────────────────────────────────────────────────────────────────┐
+│                          CLIENT BROWSERS                               │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐      │
+│  │  Customer Menu   │  │ Waiter Dashboard │  │ Admin Dashboard  │      │
+│  └────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘      │
+│           │                     │                     │                │
+│           └─────────────────────┼─────────────────────┘                │
+│                                 ▼                                      │
+│                ┌─────────────────────────────────┐                     │
+│                │       supabase_helper.js        │                     │
+│                │   (Fetch Request Interceptor)   │                     │
+│                └────────────────┬────────────────┘                     │
+└─────────────────────────────────┼──────────────────────────────────────┘
+                                  │ (HTTPS REST API / WebSockets)
+                                  ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                        SUPABASE CLOUD SERVICES                         │
+│   ┌────────────────────┐ ┌────────────────────┐ ┌────────────────────┐ │
+│   │   PostgreSQL DB    │ │  Realtime Channels │ │  Storage Buckets   │ │
+│   │ (Data Persistence) │ │ (WebSocket Sync)   │ │  (Menu Images)     │ │
+│   └────────────────────┘ └────────────────────┘ └────────────────────┘ │
+└────────────────────────────────────────────────────────────────────────┘
+
+Inputs, Processing, and Outputs:
+- Inputs: Table scanning action, cart item selections, manual orders, menu edits, 
+  waiter status clicks, and report filter dates.
+- Processing: HTTP request interception, database schema filtering, JWT authentication 
+  verification, real-time sync broadcast over WebSockets, and chart data calculation.
+- Outputs: Live updating digital menu cards, real-time KDS preparation tickets, 
+  instant sound/vibration waiter notifications, dynamic admin charts, generated 
+  table QR codes (PNG), and printable PDF revenue summaries.
+
+================================================================================
+                                    PAGE 12
+                                   REFERENCES
+================================================================================
+
+[1] Supabase Documentation, "Database & Row Level Security Policies," 
+    Available online: https://supabase.com/docs (Accessed: June 2026).
+
+[2] W3Schools, "JavaScript Fetch API and Async/Await Patterns," 
+    Available online: https://www.w3schools.com/js/js_api_fetch.asp 
+    (Accessed: June 2026).
+
+[3] Chart.js Documentation, "Creating Responsive Charts and Doughnut Visualizations," 
+    Available online: https://www.chartjs.org/docs (Accessed: June 2026).
+
+[4] jsPDF API Reference, "Client-Side PDF Generation from HTML Canvas Elements," 
+    Available online: https://rawgit.com/MrRio/jsPDF/master/docs/index.html 
+    (Accessed: July 2026).
+
+[5] MDN Web Docs, "Using Service Workers and Network Request Interception," 
+    Available online: https://developer.mozilla.org (Accessed: July 2026).
+
+[6] QR Code Security and Dining Workflows, "Enhancing Restaurant Operational 
+    Efficiency Using QR Code Tableside Systems," Journal of Hospitality and 
+    Food Service Management, vol. 28, no. 3, pp. 145-152, 2024.

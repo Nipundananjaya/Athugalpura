@@ -1166,6 +1166,113 @@ body::before {
   font-size: 12px;
   color: var(--text-muted);
 }
+/* ===== REQUEST BILL BUTTON ===== */
+.request-bill-btn {
+  display: none;
+  width: calc(100% - 48px);
+  margin: 16px 24px;
+  padding: 14px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: 'Outfit', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+  transition: all 0.3s ease;
+}
+.request-bill-btn.visible {
+  display: flex;
+}
+.request-bill-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+}
+.request-bill-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+.request-bill-btn.sent {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+}
+
+/* ===== CUSTOMER ORDER HISTORY & PAYMENTS ===== */
+.history-order-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+.history-order-card:hover {
+  border-color: rgba(255, 75, 43, 0.2);
+}
+.history-order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  border-bottom: 1px dashed var(--border);
+  padding-bottom: 8px;
+}
+.history-order-id {
+  font-weight: 800;
+  font-size: 15px;
+}
+.history-order-date {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.history-item-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: var(--text-main);
+}
+.history-total-row {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 800;
+  font-size: 15px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1.5px solid var(--border);
+}
+.history-status-badge {
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.history-status-badge.pending { background: #fffbeb; color: #d97706; }
+.history-status-badge.preparing { background: #eff6ff; color: #2563eb; }
+.history-status-badge.ready { background: #ecfdf5; color: #059669; }
+.history-status-badge.served { background: #f3f4f6; color: #4b5563; }
+.history-status-badge.cancelled { background: #fdf2f2; color: #dc2626; }
+
+.payment-method-card.selected {
+  border-color: var(--primary) !important;
+  background: var(--primary-light) !important;
+  box-shadow: var(--shadow-sm);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 </style>
 </head>
 <body>
@@ -1179,6 +1286,9 @@ body::before {
     </div>
     <div class="header-actions">
       <div class="table-badge" id="tableBadge">Table 5</div>
+      <button class="header-cart-btn" onclick="openHistory()" title="Order History" style="border-color: rgba(255, 75, 43, 0.2); color: var(--primary);">
+        <i data-feather="clock" style="width:20px;height:20px;"></i>
+      </button>
       <button class="header-cart-btn" onclick="openCart()">
         <i data-feather="shopping-cart" style="width:20px;height:20px;"></i>
         <span class="header-cart-badge" id="headerCartCount">0</span>
@@ -1237,6 +1347,74 @@ body::before {
       <span>Place Order</span>
       <span id="checkoutTotal">Rs. 0</span>
     </button>
+  </div>
+</div>
+
+<!-- HISTORY OVERLAY & SHEET -->
+<div class="overlay" id="historyOverlay" onclick="closeHistory()"></div>
+<div class="cart-sheet" id="historySheet">
+  <div class="sheet-drag"></div>
+  <div class="sheet-header">
+    <h2>Order History</h2>
+    <button class="close-btn" onclick="closeHistory()">
+      <i data-feather="x"></i>
+    </button>
+  </div>
+  <div class="sheet-body" id="historyBody" style="padding: 20px; overflow-y: auto;">
+    <!-- Filled via JS -->
+  </div>
+</div>
+
+<!-- PAYMENT OPTIONS OVERLAY & SHEET -->
+<div class="overlay" id="paymentOverlay" onclick="closePaymentOptions()"></div>
+<div class="cart-sheet" id="paymentSheet">
+  <div class="sheet-drag"></div>
+  <div class="sheet-header">
+    <h2>Select Payment Option</h2>
+    <button class="close-btn" onclick="closePaymentOptions()">
+      <i data-feather="x"></i>
+    </button>
+  </div>
+  <div class="sheet-body" style="padding: 24px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto;">
+    <div style="text-align: center; margin-bottom: 8px;">
+      <p style="font-size: 15px; color: var(--text-muted); font-weight: 500;">Amount Payable (incl. tax)</p>
+      <h2 style="font-size: 28px; font-weight: 800; color: var(--primary); margin-top: 4px;" id="paymentTotalAmount">Rs. 0.00</h2>
+    </div>
+    
+    <!-- Option 1: Request Bill / Cash -->
+    <div id="cashOptionCard" onclick="selectPaymentMethod('cash')" style="border: 2px solid var(--border); border-radius: var(--radius-sm); padding: 18px; display: flex; align-items: center; gap: 16px; cursor: pointer; transition: all 0.2s;">
+      <div style="font-size: 32px;">💵</div>
+      <div style="flex: 1;">
+        <h4 style="font-weight: 700; font-size: 16px;">Pay Cash / Request Bill</h4>
+        <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Request printed bill. A waiter will bring it to your table.</p>
+      </div>
+      <i data-feather="chevron-right" style="width: 18px; color: var(--text-muted);"></i>
+    </div>
+    
+    <!-- Option 2: Online Payment -->
+    <div id="onlineOptionCard" onclick="selectPaymentMethod('online')" style="border: 2px solid var(--border); border-radius: var(--radius-sm); padding: 18px; display: flex; align-items: center; gap: 16px; cursor: pointer; transition: all 0.2s;">
+      <div style="font-size: 32px;">💳</div>
+      <div style="flex: 1;">
+        <h4 style="font-weight: 700; font-size: 16px;">Pay Online Now</h4>
+        <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Pay instantly with credit/debit card. (Sandbox demo)</p>
+      </div>
+      <i data-feather="chevron-right" style="width: 18px; color: var(--text-muted);"></i>
+    </div>
+    
+    <!-- Card Payment Form Container (Hidden by default) -->
+    <div id="cardPaymentForm" style="display: none; flex-direction: column; gap: 12px; border-top: 1px solid var(--border); padding-top: 16px; animation: fadeIn 0.3s ease;">
+      <h4 style="font-weight: 700; font-size: 15px; margin-bottom: 4px;">Card Details</h4>
+      <input type="text" placeholder="Cardholder Name" class="search-input" style="padding: 12px 16px; font-size: 14px; border-radius: 8px; width: 100%; border: 1.5px solid var(--border); outline: none;" id="cardName">
+      <input type="text" placeholder="Card Number (4000 1234 5678 9010)" class="search-input" style="padding: 12px 16px; font-size: 14px; border-radius: 8px; width: 100%; border: 1.5px solid var(--border); outline: none;" id="cardNumber" maxlength="19">
+      <div style="display: flex; gap: 12px;">
+        <input type="text" placeholder="MM/YY" class="search-input" style="padding: 12px 16px; font-size: 14px; border-radius: 8px; flex: 1; border: 1.5px solid var(--border); outline: none;" id="cardExpiry" maxlength="5">
+        <input type="text" placeholder="CVC" class="search-input" style="padding: 12px 16px; font-size: 14px; border-radius: 8px; flex: 1; border: 1.5px solid var(--border); outline: none;" id="cardCvc" maxlength="3">
+      </div>
+      <button class="checkout-btn" style="margin-top: 8px; width: 100%;" onclick="processOnlinePayment()">
+        <span>Process Payment</span>
+        <span id="cardPaymentTotal">Rs. 0</span>
+      </button>
+    </div>
   </div>
 </div>
 
@@ -1423,7 +1601,7 @@ body::before {
   /* ===== DYNAMIC CATEGORY BUILDER ===== */
   /**
    * English: Builds the categories array dynamically from the fetched menu data — extracts unique category names, sorts them alphabetically, and assigns matching emojis.
-   * Sinhala: ලබාගත් මෙනු දත්ත වලින් categories array ගතිකව ගොඩනඟයි — අනන්‍ය category නාම 추출 කර, අකාරාදී අනුපිළිවෙලට සකසා, ගැළපෙන emoji ලබා දෙයි.
+   * Sinhala: ලබාගත් මෙනු දත්ත වලින් categories array ගතිකව ගොඩනඟයි — අනන්‍ය category නාම ඔකු කර, අකාරාදී අනුපිළිවෙලට සකසා, ගැළපෙන emoji ලබා දෙයි.
    */
   function buildCategories() {
     categories = [{ id: 'all', name: 'All Menu', emoji: '✨' }];
@@ -1738,7 +1916,7 @@ body::before {
   /* ===== PLACE REAL ORDER ===== */
   /**
    * English: Sends the cart contents as an order to /api/order, clears the cart on success, shows the order success screen, and starts live order status tracking.
-   * Sinhala: Cart හි අන්තර්ගතය /api/order වෙත ඇණවුමක් ලෙස යවයි, සාර්ථකව ම Cart හිස් කරයි, ඇණවුම් සාර්ථකත්ව තිරය පෙන්වා live ඇණවුම් තත්ත්ව ලුහුබැඳීම ආරම්භ කරයි.
+   * Sinhala: Cart හි අන්තර්ගතය /api/order වෙත ඇණවුමක් ලෙස යවයි, සාර්ථකව ම Cart හිස් කරයි, ඇණවුම් සාර්ථකත්ව තිරය පෙන්වා live ඇණවුම් තත්ත්ව ලුහුබැඩීම ආරම්භ කරයි.
    */
   function placeOrder() {
     if (cart.length === 0) return;
@@ -1961,7 +2139,7 @@ body::before {
 
   /**
    * English: Fetches the current status of the active order from /api/order_status. Fires status-change alerts and updates the tracker UI. Stops polling when the order is complete or not found.
-   * Sinhala: /api/order_status හරහා සක්‍රිය ඇණවුමේ වත්මන් තත්ත්වය ලබා ගනී. Status වෙනස් වූ විට alerts ක්‍රියාත්මක කර tracker UI යාවත්කාලීන කරයි. ඇණවුම සම්පූර්ණ හෝ නොමැති වූ විට polling නතර කරයි.
+   * Sinhala: /api/order_status හරහා සක්‍රිය ඇණවුම෪ වත්මන් තත්ත්වය ලබා ගනී. Status වෙනස් වූ විට alerts ක්‍රියාත්මක කර tracker UI යාවත්කාලීන කරයි. ඇණවුම සම්පූර්ණ හෝ නොමැති වූ විට polling නතර කරයි.
    */
   function pollOrderStatus() {
     if (!activeOrderId) {
@@ -2153,6 +2331,14 @@ body::before {
    */
   function updateTrackerUI(status) {
     const badge = document.getElementById('orderTrackerBadge');
+    if (badge) {
+      const hasCart = cart.reduce((sum, item) => sum + item.qty, 0) > 0;
+      if (hasCart) {
+        badge.classList.add('with-cart');
+      } else {
+        badge.classList.remove('with-cart');
+      }
+    }
     const badgeStatusText = document.getElementById('ftbStatusText');
     const badgeOrderId = document.getElementById('ftbOrderId');
     const badgeIcon = document.getElementById('ftbIcon');
@@ -2265,6 +2451,7 @@ body::before {
     const iconContainer = document.getElementById('trackerVisualCircle');
     iconContainer.innerHTML = `<i data-feather="${iconName}" id="trackerVisualIcon" style="width: 50px; height: 50px;"></i>`;
     feather.replace();
+    updateBillButton();
   }
 
   function openActiveOrderTracker() {
@@ -2274,9 +2461,319 @@ body::before {
     }
   }
 
+  /* ===== ORDER HISTORY LOGIC ===== */
+  
+  // Open the order history overlay panel
+  function openHistory() {
+    document.getElementById('historyOverlay').classList.add('open');
+    document.getElementById('historySheet').classList.add('open');
+    loadHistory();
+  }
+
+  // Close the order history overlay panel
+  function closeHistory() {
+    document.getElementById('historyOverlay').classList.remove('open');
+    document.getElementById('historySheet').classList.remove('open');
+  }
+
+  // Fetch the customer's order history from the database using their customer token
+  function loadHistory() {
+    const historyBody = document.getElementById('historyBody');
+    historyBody.innerHTML = '<div style="text-align:center; padding: 40px; color:var(--text-muted);">⏳ Loading history...</div>';
+    
+    // Get the unique customer token from local storage
+    let customerToken = localStorage.getItem('customer_token');
+    if (!customerToken) {
+      historyBody.innerHTML = '<div style="text-align:center; padding: 40px; color:var(--text-muted);">No orders placed yet.</div>';
+      return;
+    }
+
+    // Call the history API
+    fetch('/api/order?action=history&customer_token=' + customerToken)
+      .then(res => res.json())
+      .then(res => {
+        if (res.success && res.data && res.data.length > 0) {
+          // Loop through all orders and build the HTML content
+          const html = res.data.map(order => {
+            const dateStr = new Date(order.order_date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+            let itemsHtml = order.items.map(it => `
+              <div class="history-item-row">
+                <span>${it.quantity}x ${it.item_name}</span>
+                <span>Rs. ${it.subtotal.toFixed(2)}</span>
+              </div>
+            `).join('');
+            
+            // Set up a status badge if the order is already paid or bill is requested
+            let paymentBadge = '';
+            if (order.payment_status === 'paid') {
+              paymentBadge = `<span class="history-status-badge ready" style="margin-left: 8px;">Paid</span>`;
+            } else if (order.bill_requested) {
+              paymentBadge = `<span class="history-status-badge pending" style="margin-left: 8px;">Bill Req</span>`;
+            }
+
+            return `
+              <div class="history-order-card">
+                <div class="history-order-header">
+                  <div>
+                    <span class="history-order-id">Order #${order.order_id}</span>
+                    ${paymentBadge}
+                  </div>
+                  <span class="history-status-badge ${order.status}">${order.status}</span>
+                </div>
+                <div style="margin-bottom: 8px;">${itemsHtml}</div>
+                <div class="history-total-row">
+                  <span class="history-order-date">${dateStr}</span>
+                  <span>Total: Rs. ${order.total_amount.toFixed(2)}</span>
+                </div>
+              </div>
+            `;
+          }).join('');
+          historyBody.innerHTML = html;
+        } else {
+          historyBody.innerHTML = '<div style="text-align:center; padding: 40px; color:var(--text-muted);">No orders placed yet.</div>';
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        historyBody.innerHTML = '<div style="text-align:center; padding: 40px; color:red;">⚠️ Failed to load order history.</div>';
+      });
+  }
+
+  /* ===== PAYMENT & BILL OPTIONS ===== */
+  
+  // Open the billing drawer showing online payment and cash bill options
+  function openPaymentOptions() {
+    if (!activeOrderId) return;
+    document.getElementById('paymentOverlay').classList.add('open');
+    document.getElementById('paymentSheet').classList.add('open');
+    
+    // Fetch the latest order status and amount to display on the billing screen
+    fetch('/api/order_status?order_id=' + activeOrderId)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          const totalAmount = data.total_amount || 0;
+          document.getElementById('paymentTotalAmount').textContent = 'Rs. ' + totalAmount.toFixed(2);
+          document.getElementById('cardPaymentTotal').textContent = 'Rs. ' + totalAmount.toFixed(2);
+          
+          const cashCard = document.getElementById('cashOptionCard');
+          const onlineCard = document.getElementById('onlineOptionCard');
+          
+          cashCard.classList.remove('selected');
+          onlineCard.classList.remove('selected');
+          document.getElementById('cardPaymentForm').style.display = 'none';
+          
+          // If already paid, show online card as completed
+          if (data.payment_status === 'paid') {
+            onlineCard.classList.add('selected');
+            onlineCard.innerHTML = `
+              <div style="font-size: 32px;">✅</div>
+              <div style="flex: 1;">
+                <h4 style="font-weight: 700; font-size: 16px;">Paid Online</h4>
+                <p style="font-size: 12px; color: #10b981; margin-top: 2px;">Your online payment was received successfully!</p>
+              </div>
+            `;
+            onlineCard.onclick = null;
+            cashCard.style.pointerEvents = 'none';
+            cashCard.style.opacity = '0.5';
+          } 
+          // If bill was requested, show cash card as completed
+          else if (data.bill_requested) {
+            cashCard.classList.add('selected');
+            cashCard.innerHTML = `
+              <div style="font-size: 32px;">✅</div>
+              <div style="flex: 1;">
+                <h4 style="font-weight: 700; font-size: 16px;">Bill Requested</h4>
+                <p style="font-size: 12px; color: #d97706; margin-top: 2px;">Waiter has been notified to bring the bill.</p>
+              </div>
+            `;
+            cashCard.onclick = null;
+            onlineCard.style.pointerEvents = 'none';
+            onlineCard.style.opacity = '0.5';
+          }
+        }
+      });
+  }
+
+  // Close the billing drawer and reset payment choice cards to default
+  function closePaymentOptions() {
+    document.getElementById('paymentOverlay').classList.remove('open');
+    document.getElementById('paymentSheet').classList.remove('open');
+    
+    // Reset cash card properties
+    document.getElementById('cashOptionCard').style.pointerEvents = '';
+    document.getElementById('cashOptionCard').style.opacity = '';
+    document.getElementById('cashOptionCard').onclick = () => selectPaymentMethod('cash');
+    document.getElementById('cashOptionCard').innerHTML = `
+      <div style="font-size: 32px;">💵</div>
+      <div style="flex: 1;">
+        <h4 style="font-weight: 700; font-size: 16px;">Pay Cash / Request Bill</h4>
+        <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Request printed bill. A waiter will bring it to your table.</p>
+      </div>
+      <i data-feather="chevron-right" style="width: 18px; color: var(--text-muted);"></i>
+    `;
+    
+    // Reset online card properties
+    document.getElementById('onlineOptionCard').style.pointerEvents = '';
+    document.getElementById('onlineOptionCard').style.opacity = '';
+    document.getElementById('onlineOptionCard').onclick = () => selectPaymentMethod('online');
+    document.getElementById('onlineOptionCard').innerHTML = `
+      <div style="font-size: 32px;">💳</div>
+      <div style="flex: 1;">
+        <h4 style="font-weight: 700; font-size: 16px;">Pay Online Now</h4>
+        <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Pay instantly with credit/debit card. (Sandbox demo)</p>
+      </div>
+      <i data-feather="chevron-right" style="width: 18px; color: var(--text-muted);"></i>
+    `;
+    
+    feather.replace();
+  }
+
+  // Handle payment method card click (Cash vs Credit Card form toggle)
+  function selectPaymentMethod(method) {
+    const cashCard = document.getElementById('cashOptionCard');
+    const onlineCard = document.getElementById('onlineOptionCard');
+    const form = document.getElementById('cardPaymentForm');
+    
+    cashCard.classList.remove('selected');
+    onlineCard.classList.remove('selected');
+    form.style.display = 'none';
+    
+    if (method === 'cash') {
+      cashCard.classList.add('selected');
+      if (confirm('Are you sure you want to request your printed bill from the waiter?')) {
+        requestBill();
+      }
+    } else if (method === 'online') {
+      onlineCard.classList.add('selected');
+      form.style.display = 'flex'; // Open credit card input form
+    }
+  }
+
+  // Simulate online payment processing (Sandbox demo)
+  function processOnlinePayment() {
+    const name = document.getElementById('cardName').value.trim();
+    const number = document.getElementById('cardNumber').value.trim();
+    const expiry = document.getElementById('cardExpiry').value.trim();
+    const cvc = document.getElementById('cardCvc').value.trim();
+    
+    if (!name || !number || !expiry || !cvc) {
+      alert('Please fill in all card details.');
+      return;
+    }
+    
+    const payBtn = document.querySelector('#cardPaymentForm .checkout-btn');
+    payBtn.disabled = true;
+    payBtn.innerHTML = '<span>Processing Payment...</span>';
+    
+    // Simulate transaction delay
+    setTimeout(() => {
+      fetch('/api/order?action=pay_online', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: activeOrderId })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          alert('Online Payment successful! Thank you.');
+          closePaymentOptions();
+          pollOrderStatus(); // Update UI status tracker
+        } else {
+          alert('Payment failed: ' + data.message);
+          payBtn.disabled = false;
+          payBtn.innerHTML = '<span>Process Payment</span>';
+        }
+      })
+      .catch(() => {
+        alert('Network error during payment processing.');
+        payBtn.disabled = false;
+        payBtn.innerHTML = '<span>Process Payment</span>';
+      });
+    }, 1500);
+  }
+
+  // Send a physical cash payment/bill request to the waiter
+  function requestBill() {
+    if (!activeOrderId) return;
+    
+    const btn = document.getElementById('requestBillBtn');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Sending request...';
+    }
+    
+    fetch('/api/session?action=request_bill', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order_id: activeOrderId })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        localStorage.setItem('bill_requested_' + activeOrderId, '1');
+        alert('Bill requested successfully! A waiter has been notified.');
+        closePaymentOptions();
+        pollOrderStatus(); // Update UI status tracker
+      } else {
+        alert('Failed to request bill: ' + data.message);
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '💳 Pay / Request Bill';
+        }
+      }
+    })
+    .catch(() => {
+      alert('Network error. Failed to request bill.');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '💳 Pay / Request Bill';
+      }
+    });
+  }
+
+  // Update the bill button status at the bottom of the page based on the active order state
+  function updateBillButton() {
+    const btn = document.getElementById('requestBillBtn');
+    if (!btn) return;
+    
+    // Only show button if order status is preparing, ready, or served
+    if (activeOrderId && lastKnownStatus && ['preparing', 'ready', 'served'].includes(lastKnownStatus)) {
+      btn.classList.add('visible');
+      
+      // Check latest order status on database
+      fetch('/api/order_status?order_id=' + activeOrderId)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            if (data.payment_status === 'paid') {
+              btn.innerHTML = '✅ Order Paid Online';
+              btn.classList.add('sent');
+              btn.disabled = true;
+            } else if (data.bill_requested) {
+              btn.innerHTML = '✅ Bill Requested — Waiter Notified!';
+              btn.classList.add('sent');
+              btn.disabled = true;
+            } else {
+              btn.innerHTML = '💳 Pay / Request Bill';
+              btn.classList.remove('sent');
+              btn.disabled = false;
+            }
+          }
+        });
+    } else {
+      btn.classList.remove('visible');
+    }
+  }
+
   // Run init on load
   init();
 </script>
+
+<!-- REQUEST BILL / PAYMENT BUTTON -->
+<button class="request-bill-btn" id="requestBillBtn" onclick="openPaymentOptions()">
+  💳 Pay / Request Bill
+</button>
 
 <!-- FLOATING ORDER TRACKER BADGE -->
 <div class="floating-tracker-badge" id="orderTrackerBadge" onclick="openActiveOrderTracker()">

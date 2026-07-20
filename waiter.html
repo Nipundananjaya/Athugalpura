@@ -185,6 +185,99 @@ header {
   transform: translateY(-2px);
 }
 
+/* ===== ONLINE / OFFLINE TOGGLE ===== */
+.online-toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.online-toggle-wrap .toggle-label {
+  transition: color 0.3s;
+}
+.online-toggle-wrap.is-online .toggle-label {
+  color: var(--ready);
+}
+.toggle-switch {
+  position: relative;
+  width: 42px;
+  height: 22px;
+}
+.toggle-switch input { display: none; }
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: rgba(148,163,184,0.25);
+  border-radius: 100px;
+  border: 1px solid rgba(148,163,184,0.3);
+  transition: background 0.3s, border-color 0.3s;
+}
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  background: #94a3b8;
+  border-radius: 50%;
+  transition: left 0.3s, background 0.3s;
+}
+.toggle-switch input:checked + .toggle-slider {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+.toggle-switch input:checked + .toggle-slider::before {
+  left: 23px;
+  background: var(--ready);
+}
+
+/* ===== ASSIGNED TABLES PANEL ===== */
+.assigned-tables-section {
+  padding: 12px 16px;
+  margin: 0 0 10px 0;
+  background: rgba(99, 102, 241, 0.07);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: var(--radius-sm);
+}
+.assigned-tables-section h4 {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #818cf8;
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.assigned-tables-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.assigned-chip {
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(99,102,241,0.15);
+  border: 1px solid rgba(99,102,241,0.25);
+  color: #a5b4fc;
+  transition: transform 0.15s;
+}
+.assigned-chip:hover { transform: scale(1.05); }
+.assigned-none {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* ===== MAIN CONTENT ===== */
 main {
   flex: 1;
@@ -1565,6 +1658,15 @@ main {
       <i data-feather="bell" style="width:16px; height:16px;"></i>
       <span id="notification-btn-text">Enable Notifications</span>
     </button>
+
+    <!-- Online / Offline Toggle -->
+    <label class="online-toggle-wrap" id="online-toggle-wrap" title="Toggle your availability status">
+      <label class="toggle-switch">
+        <input type="checkbox" id="online-toggle-checkbox" onchange="handleOnlineToggle(this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+      <span class="toggle-label" id="online-toggle-label">Offline</span>
+    </label>
     
     <div class="live-time" id="clock">12:00:00 PM</div>
     
@@ -1603,6 +1705,17 @@ main {
       </button>
     </div>
     
+    <!-- My Assigned Tables -->
+    <div class="assigned-tables-section" id="assigned-tables-section">
+      <h4>
+        <i data-feather="user-check" style="width:13px;height:13px;"></i>
+        My Assigned Tables
+      </h4>
+      <div class="assigned-tables-chips" id="assigned-tables-chips">
+        <span class="assigned-none">Loading...</span>
+      </div>
+    </div>
+
     <div class="tables-scroll">
       <div class="tables-grid" id="tables-container">
         <!-- Generates 1 to 20 dynamically -->
@@ -1764,10 +1877,11 @@ let menuItems = [];
 let orderCart = [];
 let selectedTab = 'active'; // active, ready, served, cancelled
 let knownReadyOrders = new Set(); // To trigger chimes when orders move to 'ready'
-let knownBillRequests = new Set(); // To trigger chimes when customers request the bill
-let isWaiterFirstLoad = true; // Prevent chime/toast spam on page load
 
-// Web Audio API Synth Chime for Bill request alert
+let knownBillRequests = new Set(); // Stores order IDs where bill was requested to avoid repeating alerts
+let isWaiterFirstLoad = true; // Set to true to prevent alerts for old orders on first page load
+
+// Play D5-A4 synth chime when customer requests a bill
 function playBillChime() {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -1775,6 +1889,7 @@ function playBillChime() {
     const ctx = new AudioContext();
     const now = ctx.currentTime;
     
+    // Play notes sequence
     const playNote = (freq, start, duration) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -1788,21 +1903,21 @@ function playBillChime() {
       osc.stop(start + duration);
     };
     
-    playNote(587.33, now, 0.25); // D5
-    playNote(440.00, now + 0.12, 0.35); // A4
+    playNote(587.33, now, 0.25); // D5 note
+    playNote(440.00, now + 0.12, 0.35); // A4 note
   } catch(e) {
     console.warn("Bill chime failed", e);
   }
 }
 
-// Desktop Notification Helpers
+// Update the notification toggle button in the header based on browser permissions
 function updateNotificationButton() {
   const btn = document.getElementById('notification-toggle-btn');
   const btnText = document.getElementById('notification-btn-text');
   if (!btn || !btnText) return;
   
   if (!('Notification' in window)) {
-    btn.style.display = 'none';
+    btn.style.display = 'none'; // Hide if browser doesn't support notifications
     return;
   }
   
@@ -1821,6 +1936,7 @@ function updateNotificationButton() {
   }
 }
 
+// Request permission to send push notifications to waiter's device
 function requestNotificationPermission() {
   if ('Notification' in window) {
     Notification.requestPermission().then(permission => {
@@ -1833,6 +1949,7 @@ function requestNotificationPermission() {
   }
 }
 
+// Show native desktop push notification alert
 function sendDesktopNotification(title, bodyText) {
   if ('Notification' in window && Notification.permission === 'granted') {
     try {
@@ -1847,16 +1964,16 @@ function sendDesktopNotification(title, bodyText) {
   }
 }
 
-// Web Audio API Synth Chime for Ready alert
+// Play double note C5-E5 chime when kitchen marks an order as ready
 function playReadyChime() {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
     const ctx = new AudioContext();
     
-    // Play double chime
     const now = ctx.currentTime;
     
+    // Play double notes
     const playNote = (freq, start, duration) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -1864,7 +1981,6 @@ function playReadyChime() {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, start);
       
-      // Smooth decay
       gain.gain.setValueAtTime(0.3, start);
       gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
       
@@ -1875,14 +1991,14 @@ function playReadyChime() {
       osc.stop(start + duration);
     };
     
-    playNote(523.25, now, 0.3); // C5
-    playNote(659.25, now + 0.15, 0.4); // E5
+    playNote(523.25, now, 0.3); // C5 note
+    playNote(659.25, now + 0.15, 0.4); // E5 note
   } catch(e) {
     console.warn("Chime failed", e);
   }
 }
 
-// Show Toast
+// Render a temporary notification toast at the bottom of the screen
 function showToast(message, type = 'success') {
   const container = document.getElementById('toast-container');
   const toast = document.createElement('div');
@@ -1894,13 +2010,13 @@ function showToast(message, type = 'success') {
   container.appendChild(toast);
   feather.replace();
   
-  // Auto remove after 3s
+  // Remove toast from DOM after 3 seconds
   setTimeout(() => {
     toast.remove();
   }, 3000);
 }
 
-// Clock logic
+// Initialize live digital clock in the dashboard header
 function initClock() {
   const clockEl = document.getElementById('clock');
   function update() {
@@ -1908,7 +2024,7 @@ function initClock() {
     clockEl.textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   }
   update();
-  setInterval(update, 1000);
+  setInterval(update, 1000); // Update time every 1 second
 }
 
 // Initialize tables grid (1 to 20)
@@ -2681,12 +2797,82 @@ function checkSession() {
     });
 }
 
+// ===== ONLINE STATUS MANAGEMENT =====
+
+/**
+ * Sets the waiter's online status in Supabase via the online_status API route.
+ * Updates the header toggle UI to reflect the new state.
+ */
+async function setOnlineStatus(isOnline) {
+  try {
+    const action = isOnline ? 'set_online' : 'set_offline';
+    await fetch(`/api/online_status?action=${action}`, { method: 'POST', body: JSON.stringify({}) });
+  } catch(e) {
+    console.warn('[OnlineStatus] Failed to update:', e.message);
+  }
+  updateOnlineToggleUI(isOnline);
+}
+
+/**
+ * Called when the toggle checkbox changes.
+ */
+function handleOnlineToggle(checked) {
+  setOnlineStatus(checked);
+}
+
+/**
+ * Updates the toggle UI without making an API call.
+ */
+function updateOnlineToggleUI(isOnline) {
+  const wrap = document.getElementById('online-toggle-wrap');
+  const checkbox = document.getElementById('online-toggle-checkbox');
+  const label = document.getElementById('online-toggle-label');
+  if (!wrap) return;
+  if (isOnline) {
+    wrap.classList.add('is-online');
+    checkbox.checked = true;
+    label.textContent = 'Online';
+  } else {
+    wrap.classList.remove('is-online');
+    checkbox.checked = false;
+    label.textContent = 'Offline';
+  }
+}
+
+/**
+ * Loads and renders the waiter's assigned tables in the left panel chip strip.
+ */
+async function loadAssignedTables() {
+  const chipsEl = document.getElementById('assigned-tables-chips');
+  if (!chipsEl) return;
+  try {
+    const res = await fetch('/api/waiter_assignment?action=fetch_my_tables');
+    const data = await res.json();
+    const tables = data.data || [];
+    if (tables.length === 0) {
+      chipsEl.innerHTML = '<span class="assigned-none">No tables assigned yet</span>';
+    } else {
+      chipsEl.innerHTML = tables.map(t =>
+        `<span class="assigned-chip" title="Table ${t}">T${t}</span>`
+      ).join('');
+    }
+    // Re-run feather icons for the section header
+    if (window.feather) feather.replace();
+  } catch(e) {
+    chipsEl.innerHTML = '<span class="assigned-none">Could not load assignments</span>';
+    console.warn('[AssignedTables]', e.message);
+  }
+}
+
 // Window load
 window.onload = () => {
   feather.replace();
   checkSession();
   updateNotificationButton();
-  
+  // Set waiter online on page load and load their assigned tables
+  setOnlineStatus(true);
+  loadAssignedTables();
+
   // Request notification permission and unlock audio context on first click
   document.body.addEventListener('click', () => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -2702,10 +2888,13 @@ window.onload = () => {
   }, { once: true });
 };
 // ===== TABLE BILL MANAGEMENT =====
+
+// Fetch bill details for the selected table session and display them in the modal
 function openTableBill(tableNumber) {
   const modal = document.getElementById('bill-modal');
   const content = document.getElementById('bill-content');
   
+  // Show loader while loading the bill details
   content.innerHTML = `
     <div style="padding: 60px; text-align: center; color: var(--text-muted);">
       <i data-feather="loader" style="width:36px;height:36px;animation:spin 1s linear infinite;"></i>
@@ -2715,11 +2904,12 @@ function openTableBill(tableNumber) {
   modal.classList.add('active');
   feather.replace();
   
+  // Call API to fetch the active session bill for the table
   fetch(`/api/session?action=get_table_bill&table_number=${tableNumber}`)
     .then(r => r.json())
     .then(res => {
       if (res.success) {
-        renderBillModal(res);
+        renderBillModal(res); // Render the visual invoice
       } else {
         content.innerHTML = `
           <div style="padding: 40px; text-align: center;">
@@ -2735,6 +2925,7 @@ function openTableBill(tableNumber) {
     });
 }
 
+// Render the visual bill layout in the modal using fetched session data
 function renderBillModal(data) {
   const content = document.getElementById('bill-content');
   
@@ -2806,10 +2997,12 @@ function renderBillModal(data) {
   feather.replace();
 }
 
+// Close the table bill modal
 function closeBillModal() {
   document.getElementById('bill-modal').classList.remove('active');
 }
 
+// Close the active table session (resolving unpaid cash orders and freeing the table)
 function closeTableSession(sessionId, tableNumber) {
   if (!confirm(`Close Table ${tableNumber}? This will mark all orders as served and free the table.`)) return;
   
