@@ -2061,8 +2061,11 @@ html,body{
           Base Domain / URL (Optional Override)
         </label>
         <div class="qr-input-wrapper">
-          <input type="text" id="qrBaseUrl" class="qr-input" placeholder="Leave empty for auto-detect (or e.g. https://site.github.io/repo)">
+          <input type="text" id="qrBaseUrl" class="qr-input" placeholder="e.g. https://yourusername.github.io/yourrepo">
         </div>
+        <p style="font-size: 11px; color: #6b7280; margin-top: 4px; margin-bottom: 8px;">
+          💡 Enter your GitHub Pages URL here so generated QR codes point to your GitHub hosted menu.
+        </p>
 
         <label for="tableNumber" style="margin-top:12px;">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
@@ -2071,6 +2074,10 @@ html,body{
         <div class="qr-input-wrapper">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
           <input type="number" id="tableNumber" class="qr-input" placeholder="Enter Table Number (e.g. 5)" min="1">
+        </div>
+        <div id="qrUrlPreviewBox" style="display:none; margin: 10px 0; padding: 10px 12px; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 8px;">
+          <p style="font-size: 10px; color: #16a34a; font-weight: 700; margin: 0 0 4px;">✅ QR will link to:</p>
+          <p id="qrUrlPreviewText" style="font-size: 11px; color: #374151; word-break: break-all; margin: 0; font-family: monospace;"></p>
         </div>
         <button id="generateBtn" class="qr-btn">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h6v6H3z"></path><path d="M15 3h6v6h-6z"></path><path d="M3 15h6v6H3z"></path><path d="M15 15h6v6h-6z"></path><path d="M21 9h-6V3"></path><path d="M21 21h-6v-6"></path><path d="M9 21H3v-6"></path><path d="M9 9H3V3"></path></svg>
@@ -2277,17 +2284,22 @@ const closeQrPanelBtn = document.getElementById('close-qr-panel');
 
 /**
  * English: Opens the QR code generation side panel and shows the overlay backdrop.
- * Sinhala: QR �a�aත න�ර�`මාණ පැත� �a෬��&�෬ (side panel) ෬�෬��ත �aර backdrop overlay ��a ප�"න�`෬ය�.
+ * Sinhala: QR aaත න ර`මාණ පැත  a෬ & ෬ (side panel) ෬ ෬ත aර backdrop overlay  a ප"න`෬ය .
  */
 function openQrPanel(e) {
   if(e) e.preventDefault();
   qrSidePanel.classList.add('open');
   panelOverlay.classList.add('show');
+  const savedUrl = localStorage.getItem('qr_default_base_url');
+  const inputEl = document.getElementById('qrBaseUrl');
+  if (savedUrl && inputEl && !inputEl.value) {
+    inputEl.value = savedUrl;
+  }
 }
 
 /**
  * English: Closes the QR code generation side panel and hides the overlay backdrop.
- * Sinhala: QR �a�aත න�ර�`මාණ පැත� �a෬��&�෬ ෬ිා overlay backdrop ��a ි�x෬ය�.
+ * Sinhala: QR aaත න ර`මාණ පැත  a෬ & ෬ ෬ිා overlay backdrop  a ිx෬ය .
  */
 function closeQrPanel() {
   qrSidePanel.classList.remove('open');
@@ -2298,6 +2310,43 @@ if(navTablesQr) {
   navTablesQr.addEventListener('click', (e) => { e.preventDefault(); switchView('tables-qr'); });
 }
 const addQrBtn = document.getElementById('add-qr-btn');
+const generateBtn = document.getElementById('generateBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const tableInput = document.getElementById('tableNumber');
+const qrcodeBox = document.getElementById('qrcode');
+const qrPlaceholder = document.getElementById('qr-placeholder');
+
+// Live preview helper
+function updateQrUrlPreview() {
+  const tableNum = tableInput ? tableInput.value.trim() : '';
+  const customUrlInput = document.getElementById('qrBaseUrl');
+  let base = customUrlInput ? customUrlInput.value.trim() : '';
+  if (!base) base = localStorage.getItem('qr_default_base_url') || '';
+
+  const previewBox = document.getElementById('qrUrlPreviewBox');
+  const previewText = document.getElementById('qrUrlPreviewText');
+  if (!previewBox || !previewText) return;
+
+  if (!tableNum) { previewBox.style.display = 'none'; return; }
+
+  let previewUrl = '';
+  if (base) {
+    base = base.replace(/\/$/, '');
+    if (!base.startsWith('http')) base = 'https://' + base;
+    previewUrl = base + '/menu.html?table=' + tableNum;
+  } else {
+    const currentPath = window.location.pathname;
+    const basePath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1).replace(/\/$/, '');
+    previewUrl = window.location.origin + basePath + '/menu.html?table=' + tableNum;
+  }
+  previewText.textContent = previewUrl;
+  previewBox.style.display = 'block';
+}
+
+if (tableInput) tableInput.addEventListener('input', updateQrUrlPreview);
+const qrBaseUrlInput = document.getElementById('qrBaseUrl');
+if (qrBaseUrlInput) qrBaseUrlInput.addEventListener('input', updateQrUrlPreview);
+
 if(addQrBtn) {
   addQrBtn.addEventListener('click', openQrPanel);
 }
@@ -2311,14 +2360,6 @@ if(panelOverlay) {
     if(typeof closeStaffPanel === 'function') closeStaffPanel();
   });
 }
-
-const generateBtn = document.getElementById('generateBtn');
-const downloadBtn = document.getElementById('downloadBtn');
-const tableInput = document.getElementById('tableNumber');
-const qrcodeBox = document.getElementById('qrcode');
-const qrPlaceholder = document.getElementById('qr-placeholder');
-
-
 generateBtn.addEventListener('click', () => {
   const tableNum = tableInput.value.trim();
   if (!tableNum) {
@@ -2334,14 +2375,21 @@ generateBtn.addEventListener('click', () => {
   qrcodeBox.style.display = 'block';
   qrPlaceholder.style.display = 'none';
   
-  // Build base URL: use custom override if provided, or fallback to current origin
+  // Build base URL: use custom override if provided, or read saved default, or fallback to current origin
   const customUrlInput = document.getElementById('qrBaseUrl');
+  let customBase = customUrlInput ? customUrlInput.value.trim() : '';
+  if (!customBase) {
+    customBase = localStorage.getItem('qr_default_base_url') || '';
+    if (customBase && customUrlInput) customUrlInput.value = customBase;
+  }
+  
   let menuUrl = '';
-  if (customUrlInput && customUrlInput.value.trim()) {
-    let customBase = customUrlInput.value.trim().replace(/\/$/, '');
+  if (customBase) {
+    customBase = customBase.replace(/\/$/, '');
     if (!customBase.startsWith('http://') && !customBase.startsWith('https://')) {
-      customBase = 'http://' + customBase;
+      customBase = 'https://' + customBase;
     }
+    localStorage.setItem('qr_default_base_url', customBase);
     if (customBase.includes('menu.html')) {
       menuUrl = customBase + (customBase.includes('?') ? '&' : '?') + 'table=' + tableNum;
     } else {
