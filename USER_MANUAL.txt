@@ -1,0 +1,120 @@
+================================================================================
+                      RESTAURANT QR ORDERING SYSTEM
+                               USER MANUAL
+================================================================================
+
+Welcome to the Restaurant QR Ordering System! This system makes it easy for 
+customers to order food from their tables, and helps waiters, kitchen staff, 
+and admins manage orders and payments smoothly.
+
+This manual explains how to use all 4 parts of the system:
+1. Customer Menu & Ordering (menu.html)
+2. Waiter Dashboard (waiter.html)
+3. Kitchen Display (kitchen.html)
+4. Admin Dashboard (admin.html)
+
+--------------------------------------------------------------------------------
+1. CUSTOMER MENU & ORDERING (menu.html)
+--------------------------------------------------------------------------------
+This is the screen the customers see on their mobile phones when they scan 
+the QR code on their table.
+
+* How to Access:
+  - Scan the QR code printed on your table. It automatically opens the menu 
+    with your Table Number active.
+
+* How to Order Food:
+  1. Browse food categories (Appetizers, Mains, Drinks, Desserts).
+  2. Click on a food item to open details, select quantity, and add to Cart.
+  3. Click the Cart button (bottom right) to see your items.
+  4. Type your name (optional) and click "Place Order".
+  5. Your order is sent straight to the Kitchen!
+
+* How to Pay for your Food:
+  After placing orders, you can pay using two options from the Cart or Active Orders panel:
+  
+  A. ONLINE PAYMENT:
+     - Click the "Pay Online" button.
+     - Choose your payment type (Card, Mobile Pay, etc.) and complete the payment.
+     - The system immediately marks your order/session as "Paid".
+     
+  B. PHYSICAL PAYMENT (CASH / CARD TO WAITER):
+     - Click the "Bring Physical Bill" button.
+     - A notification is sent to the Waiter immediately.
+     - The waiter will bring the paper bill to your table, collect your cash or 
+       swipe your card, and mark your table as resolved.
+
+* How to View Order History:
+  - Click the "History" or "Order History" button in the menu.
+  - You can see all the items you ordered during your current visit, their 
+    prices, and their real-time cooking status (Pending, Preparing, Ready).
+
+--------------------------------------------------------------------------------
+2. WAITER DASHBOARD (waiter.html)
+--------------------------------------------------------------------------------
+This dashboard is used by waiters on tablets or phones to monitor tables and 
+assist customers.
+
+* Live Notifications (Left Side):
+  - Waiters see live alerts with sound.
+  - "New Order Placed": Shows which table ordered and what they ordered.
+  - "Call Waiter": Customer needs help at a specific table.
+  - "Bill Requested": Customer wants a physical bill brought to their table.
+  - Action: Click "Dismiss" once you attend to the table.
+
+* Table Grid (Right Side):
+  - Shows all tables in the restaurant (e.g., Table 1 to 20).
+  - Colors show table status:
+    * Blue/Active: Table currently has customers ordering.
+    * Grey/Free: Table is empty.
+  - Clicking on an Active Table opens the Bill Details:
+    * You can see the list of all items they ordered.
+    * Click "Close Session & Settle Cash" to mark their pending physical bills 
+      as Paid and reset the table to "Free" for the next customers.
+
+--------------------------------------------------------------------------------
+3. KITCHEN DISPLAY (kitchen.html)
+--------------------------------------------------------------------------------
+This screen is placed on a screen in the kitchen. Chefs use it to see new 
+orders and update their preparation progress.
+
+* View Incoming Orders:
+  - Orders appear in order cards from oldest to newest.
+  - Each card shows: Table Number, Order ID, Items and Quantities, and Elapsed Time.
+  - Cards play a sound when a new order arrives.
+
+* Updating Order Status:
+  - Click "Start Preparing" (yellow button) when you start cooking. 
+    (Customer sees status update: "Preparing").
+  - Click "Mark Ready" (green button) when the food is cooked. 
+    (Customer sees status update: "Ready", and Waiter gets a alert to serve).
+  - Click "Dismiss/Served" once the food is taken to the customer table.
+
+--------------------------------------------------------------------------------
+4. ADMIN DASHBOARD (admin.html)
+--------------------------------------------------------------------------------
+Used by managers and owners to control the menu, staff, tables, and view reports.
+
+* Dashboard Overview:
+  - Shows live statistics: Today's Revenue, Active Orders, Occupied Tables, 
+    and Popular Dishes.
+
+* Menu Management (Menu Tab):
+  - Add New Food Items: Enter name, category, price, description, and photo.
+  - Edit/Delete Items: Modify existing prices, availability, or photos.
+
+* Tables & QR (Tables Tab):
+  - Add or delete tables.
+  - Generate and download QR codes for new tables.
+
+* Staff & Assignments (Staff / Assignments Tabs):
+  - Add staff accounts (Waiters, Chefs, Admins).
+  - Assign specific waiters to manage specific tables.
+
+* Reports & Analytics (Reports Tab):
+  - Select date ranges to see sales reports.
+  - Download reports as Excel/CSV or print sales summaries.
+
+================================================================================
+                           END OF USER MANUAL
+================================================================================

@@ -1,0 +1,155 @@
+================================================================================
+           ATHUGALPURA RESTAURANT – SMARTSERVE ORDERING SYSTEM
+                 VIVA PREPARATION: QUESTIONS & ANSWERS
+================================================================================
+
+This document contains the most common questions supervisors ask during project 
+vivas, along with simple English answers and Sinhala explanations.
+
+--------------------------------------------------------------------------------
+Q1: What is the architecture of this system?
+--------------------------------------------------------------------------------
+* Simple English Answer:
+  "This system uses a Serverless Client-Side Architecture. Instead of running a 
+  traditional backend server (like PHP or Node.js on a local server), the frontend 
+  pages communicate directly with Supabase Cloud Services. We use a custom script 
+  called 'supabase_helper.js' to intercept legacy API calls and route them 
+  securely to Supabase REST and WebSocket endpoints."
+
+* සිංහල තේරුම (Sinhala Guide):
+  මෙතන Backend server එකක් (PHP/NodeJS වගේ) වෙනම run වෙන්නේ නෑ. Frontend එක කෙලින්ම 
+  Supabase Cloud එකත් එක්ක 'supabase_helper.js' හරහා සම්බන්ධ වෙනවා (Serverless Architecture).
+
+--------------------------------------------------------------------------------
+Q2: Why did you choose Supabase instead of a traditional PHP/MySQL backend?
+--------------------------------------------------------------------------------
+* Simple English Answer:
+  "I chose Supabase for three main reasons:
+   1. Real-time Capabilities: Out-of-the-box WebSocket support to sync orders 
+      between customers, kitchen, and waiters instantly.
+   2. Cost and Maintenance: It is serverless, meaning we don't need to host and 
+      maintain a local PHP server, reducing operational costs.
+   3. Speed: Direct API calls to Supabase databases have low latency."
+
+* සිංහල තේරුම (Sinhala Guide):
+  ඇයි Supabase දැම්මේ ඇහුවොත් කියන්න: 1. Real-time (WebSockets) ලේසියෙන්ම කරන්න පුලුවන් නිසා, 
+  2. Server maintain කරන්න ඕන නැති නිසා (Serverless), 3. Speed එක වැඩිනිසා.
+
+--------------------------------------------------------------------------------
+Q3: How does real-time communication work in your system?
+--------------------------------------------------------------------------------
+* Simple English Answer:
+  "We use Supabase Realtime Channels, which run on WebSockets. When a customer places 
+  an order, it writes to the PostgreSQL database. The database triggers a broadcast, 
+  and all subscribed client pages (like kitchen.html and waiter.html) receive the 
+  new order notification immediately without reloading the page."
+
+* සිංහල තේරුම (Sinhala Guide):
+  පේජ් එක reload වෙන්නේ නැතුව update වෙන්නේ කොහොමද ඇහුවොත්: Supabase Realtime (WebSockets) 
+  භාවිතා කරලා. Order එකක් වැටුන ගමන් Database එකෙන් subscribe කරලා තියෙන KDS (Kitchen) 
+  සහ Waiter screen වලට notification එකක් broadcast කරනවා.
+
+--------------------------------------------------------------------------------
+Q4: Is it secure to communicate directly from frontend to database? 
+    What is RLS?
+--------------------------------------------------------------------------------
+* Simple English Answer:
+  "Yes, it is secure because we use PostgreSQL Row Level Security (RLS) on Supabase. 
+  RLS policies act as security guards at the database level. Even though the request 
+  comes from the client, the database verifies the user's JSON Web Token (JWT). 
+  For example, a customer JWT only allows inserting orders, while a Waiter JWT 
+  is required to update table sessions."
+
+* සිංහල තේරුම (Sinhala Guide):
+  Frontend එකෙන් direct database query කරන එක security අවුලක් නැද්ද ඇහුවොත්: "අපි 
+  Row Level Security (RLS) policies දාලා තියෙන්නේ. ඒ නිසා logged-in user ගේ token (JWT) 
+  එක check කරලා තමයි database එකෙන් access දෙන්නේ."
+
+--------------------------------------------------------------------------------
+Q5: Explain your database structure. What are the key tables?
+--------------------------------------------------------------------------------
+* Simple English Answer:
+  "Our relational database has 8 key tables:
+   1. 'orders' & 'order_items': Stores order details and individual items ordered.
+   2. 'menu_items' & 'categories': Stores the food menu list and categories.
+   3. 'staff' & 'users': Stores staff profiles (Waiters/Chefs) and login credentials.
+   4. 'table_sessions': Tracks active tables.
+   5. 'waiter_table_assignments': Tracks which waiter is assigned to which table."
+
+* සිංහල තේරුම (Sinhala Guide):
+  Database එකේ tables මොනවද ඇහුවොත්: orders (order details), order_items (Ordered items), 
+  menu_items (කෑම වර්ග), staff/users (වැඩකරන අය), table_sessions (Active මේස), 
+  සහ waiter_table_assignments (වේටර්ලට මේස පැවරීම).
+
+--------------------------------------------------------------------------------
+Q6: How does a customer session start and end?
+--------------------------------------------------------------------------------
+* Simple English Answer:
+  "A session starts when a customer scans the table QR code, which opens the menu 
+  with their table number. When they place orders, the session status becomes 'Active'. 
+  The session ends when the table bill is paid (either online, or marked as cash settled 
+  by a waiter). Once settled, the table status resets to 'Free' for the next guest."
+
+* සිංහල තේරුම (Sinhala Guide):
+  Customer කෙනෙක් QR code එක scan කරාම session එකක් පටන් ගන්නවා. සල්ලි ගෙවලා 
+  (online හෝ waiter හරහා settle කරලා) ඉවර උනාම session එක end වෙලා table එක 'Free' වෙනවා.
+
+--------------------------------------------------------------------------------
+Q7: How are the PDF reports generated in the Admin Dashboard?
+--------------------------------------------------------------------------------
+* Simple English Answer:
+  "The PDF reports are generated client-side inside the browser. We use the 'jsPDF' 
+  and 'html2canvas' libraries. The system takes the sales summary details, formats 
+  them into a clean report card, converts the HTML element to a canvas, and exports 
+  it directly as a downloadable PDF file."
+
+* සිංහල තේරුම (Sinhala Guide):
+  Admin panel එකෙන් reports download කරන්නේ කොහොමද ඇහුවොත්: server එක බර කරන්නේ 
+  නැතුව, client side එකේම jsPDF සහ html2canvas කියන libraries පාවිච්චි කරලා PDF එක 
+  හදලා download කරලා දෙනවා.
+
+--------------------------------------------------------------------------------
+Q8: What happens if two customers order at the same time? How do you 
+    prevent concurrency issues?
+--------------------------------------------------------------------------------
+* Simple English Answer:
+  "Supabase uses PostgreSQL under the hood, which handles concurrent requests 
+  automatically using ACID transactions and row locking. Each order is inserted 
+  as a unique row with a auto-generated UUID, preventing data collisions."
+
+* සිංහල තේරුම (Sinhala Guide):
+  එක පාර customer ලා දෙන්නෙක් order කලොත් මොකද වෙන්නේ ඇහුවොත්: Supabase PostgreSQL 
+  භාවිතා කරන නිසා ACID transactions සහ default Row-locking වලින් concurrency 
+  ප්‍රශ්න නැතුව orders auto-handle වෙනවා.
+
+--------------------------------------------------------------------------------
+Q9: What is the purpose of "supabase_helper.js"?
+--------------------------------------------------------------------------------
+* Simple English Answer:
+  "It acts as a middleware or wrapper. It intercepts standard HTTP fetch requests 
+  made by the user interface, converts them to Supabase JavaScript client calls 
+  (like database inserts, updates, or authentication), and returns the data 
+  in the expected format. This allowed us to switch our backend to Supabase 
+  without rewriting all frontend network logic."
+
+* සිංහල තේරුම (Sinhala Guide):
+  supabase_helper.js එකෙන් කරන්නේ මොකක්ද ඇහුවොත්: ඒක API calls intercept කරලා, 
+  Supabase cloud DB එකත් එක්ක ගනුදෙනු කරලා frontend එකට data pass කරන 
+  middleware/interceptor එකක්.
+
+--------------------------------------------------------------------------------
+Q10: What are the future enhancements you plan to add to this system?
+--------------------------------------------------------------------------------
+* Simple English Answer:
+  "For future improvements, I plan to:
+   1. Integrate a real SMS gateway to notify customers when their order is ready.
+   2. Implement an AI-based dish recommendation system based on order history.
+   3. Add multi-language support (Sinhala, Tamil, English) to the customer menu."
+
+* සිංහල තේරුම (Sinhala Guide):
+  Future improvements මොනවද ඇහුවොත්: 1. SMS Notification gateway, 2. AI food 
+  recommendation, 3. Multi-language support (සිංහල / දෙමළ / English).
+
+================================================================================
+                        END OF VIVA QUESTIONS & ANSWERS
+================================================================================

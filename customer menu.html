@@ -1169,13 +1169,17 @@ body::before {
 /* ===== REQUEST BILL BUTTON ===== */
 .request-bill-btn {
   display: none;
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(150%);
   width: calc(100% - 48px);
-  margin: 16px 24px;
-  padding: 14px;
+  max-width: 400px;
+  padding: 16px 20px;
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   color: white;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: 100px;
   font-family: 'Outfit', sans-serif;
   font-size: 15px;
   font-weight: 700;
@@ -1184,24 +1188,33 @@ body::before {
   gap: 8px;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
-  transition: all 0.3s ease;
+  box-shadow: 0 10px 25px rgba(99, 102, 241, 0.35);
+  z-index: 140;
+  transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), bottom 0.3s ease, background 0.3s;
 }
 .request-bill-btn.visible {
   display: flex;
+  transform: translateX(-50%) translateY(0);
+}
+.request-bill-btn.with-cart {
+  bottom: 105px;
 }
 .request-bill-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 12px 28px rgba(99, 102, 241, 0.45);
+}
+.request-bill-btn.visible:hover {
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 12px 28px rgba(99, 102, 241, 0.45);
 }
 .request-bill-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  transform: none;
+  transform: translateX(-50%) translateY(0);
 }
 .request-bill-btn.sent {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 10px 25px rgba(16, 185, 129, 0.35);
 }
 
 /* ===== CUSTOMER ORDER HISTORY & PAYMENTS ===== */
@@ -1456,7 +1469,10 @@ body::before {
     <p id="trackerStatusDesc">Waiting for kitchen to accept...</p>
   </div>
 
-  <button class="back-btn" onclick="closeSuccess()" style="margin-top: 10px;">Back to Menu</button>
+  <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 10px;">
+    <button class="back-btn" onclick="closeSuccess()">Back to Menu</button>
+    <button class="back-btn" onclick="closeSuccess(); openHistory();" style="background: transparent; color: var(--text-main); border: 1.5px solid var(--border);">📜 View Order History</button>
+  </div>
 </div>
 
 <!-- ITEM DETAIL MODAL -->
@@ -1804,14 +1820,17 @@ body::before {
 
     // Update Floating Cart
     const trackerBadge = document.getElementById('orderTrackerBadge');
+    const billBtn = document.getElementById('requestBillBtn');
     if (totalQty > 0) {
       wrapper.classList.add('visible');
       if (trackerBadge) trackerBadge.classList.add('with-cart');
+      if (billBtn) billBtn.classList.add('with-cart');
       document.getElementById('fcCount').textContent = totalQty;
       document.getElementById('fcTotal').textContent = 'Rs. ' + totalPrice.toFixed(2);
     } else {
       wrapper.classList.remove('visible');
       if (trackerBadge) trackerBadge.classList.remove('with-cart');
+      if (billBtn) billBtn.classList.remove('with-cart');
       closeCart();
     }
   }
@@ -2124,7 +2143,52 @@ body::before {
       if ("Notification" in window && Notification.permission === "default") {
         Notification.requestPermission();
       }
+    } else {
+      restoreActiveOrderFromHistory();
     }
+  }
+
+  function restoreActiveOrderFromHistory() {
+    if (currentTableNum) {
+      fetch('/api/order?action=active_table_order&table_number=' + currentTableNum)
+        .then(res => res.json())
+        .then(res => {
+          if (res.success && res.order_id) {
+            activeOrderId = res.order_id;
+            localStorage.setItem('active_order_id', activeOrderId);
+            startStatusPolling();
+            return;
+          }
+          checkCustomerTokenHistory();
+        })
+        .catch(() => {
+          checkCustomerTokenHistory();
+        });
+    } else {
+      checkCustomerTokenHistory();
+    }
+  }
+
+  function checkCustomerTokenHistory() {
+    const customerToken = localStorage.getItem('customer_token');
+    if (!customerToken) return;
+
+    fetch('/api/order?action=history&customer_token=' + customerToken)
+      .then(res => res.json())
+      .then(res => {
+        if (res.success && res.data && res.data.length > 0) {
+          // Find latest order that is not paid and not cancelled
+          const activeOrder = res.data.find(order => order.payment_status !== 'paid' && order.status !== 'cancelled');
+          if (activeOrder) {
+            activeOrderId = activeOrder.order_id;
+            localStorage.setItem('active_order_id', activeOrderId);
+            startStatusPolling();
+          }
+        }
+      })
+      .catch(err => {
+        console.warn('Error restoring active order from history:', err);
+      });
   }
 
   /**
@@ -2429,9 +2493,8 @@ body::before {
       statusDesc.innerHTML = 'Your order has been served.<br>Enjoy your delicious meal! 🍽️';
       
       badge.classList.remove('visible');
-      
-      localStorage.removeItem('active_order_id');
-      stopStatusPolling();
+      // Do not clear active order ID or stop status polling here.
+      // Customer needs to pay first; active order ID is cleared upon successful payment.
       
     } else if (status === 'cancelled') {
       stepLine.style.background = 'var(--border)';
@@ -2718,7 +2781,7 @@ body::before {
     const btn = document.getElementById('requestBillBtn');
     if (!btn) return;
     
-    if (activeOrderId && lastKnownStatus && ['preparing', 'ready', 'served'].includes(lastKnownStatus)) {
+    if (activeOrderId && lastKnownStatus && lastKnownStatus === 'served') {
       btn.classList.add('visible');
       
       // Check if already requested or paid
@@ -2727,9 +2790,11 @@ body::before {
         .then(data => {
           if (data.success) {
             if (data.payment_status === 'paid') {
-              btn.innerHTML = '✅ Order Paid Online';
+              btn.innerHTML = '✅ Order Paid';
               btn.classList.add('sent');
               btn.disabled = true;
+              localStorage.removeItem('active_order_id');
+              stopStatusPolling();
             } else if (data.bill_requested) {
               btn.innerHTML = '✅ Bill Requested — Waiter Notified!';
               btn.classList.add('sent');

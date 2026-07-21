@@ -1,0 +1,200 @@
+================================================================================
+           ATHUGALPURA RESTAURANT – SMARTSERVE ORDERING SYSTEM
+               SOFTWARE REQUIREMENTS SPECIFICATION (SRS)
+================================================================================
+
+Project Title: Athugalpura Restaurant - SmartServe Ordering System
+Document Version: 1.0
+Date: July 20, 2026
+
+--------------------------------------------------------------------------------
+1. INTRODUCTION
+--------------------------------------------------------------------------------
+
+1.1 Purpose
+The purpose of this document is to define the complete software requirements for the 
+SmartServe Ordering System. This specification is written for developers, project 
+supervisors, and restaurant owners to understand the system's functions, design 
+constraints, and non-functional requirements.
+
+1.2 Scope
+SmartServe is a serverless, real-time, QR-code-based ordering and management system 
+designed for Athugalpura Restaurant. The system allows dine-in customers to scan a 
+table QR code, browse the dynamic digital menu, place food orders, track status, and 
+pay bills directly. It also provides dedicated real-time interfaces for kitchen staff 
+(Kitchen Display System), waiters (Waiter Dashboard), and management (Admin Dashboard).
+
+1.3 Definitions and Abbreviations
+- SRS: Software Requirements Specification
+- KDS: Kitchen Display System (kitchen.html)
+- RLS: Row Level Security (Supabase security feature)
+- JWT: JSON Web Token (Used for user authentication)
+- UI/UX: User Interface / User Experience
+- Supabase: A serverless backend platform powered by PostgreSQL
+- WebSocket: A protocol providing real-time, two-way communication channels over TCP
+
+1.4 Document Overview
+This document contains:
+- Section 2: Overall product perspective, user classes, and operating constraints.
+- Section 3: Detailed functional requirements grouped by user modules.
+- Section 4: External interfaces (hardware, software, and communication protocols).
+- Section 5: Non-functional requirements (security, performance, and reliability).
+
+--------------------------------------------------------------------------------
+2. OVERALL DESCRIPTION
+--------------------------------------------------------------------------------
+
+2.1 Product Perspective
+SmartServe is a modern web-based platform with a serverless client-side architecture. 
+Instead of communicating with a local PHP server, the HTML/JS web applications communicate 
+directly with Supabase Cloud Services. A custom wrapper script (supabase_helper.js) 
+intercepts requests and manages database reads, writes, and real-time WebSocket sync.
+
+2.2 Product Functions
+The system performs five main groups of functions:
+1. QR Identification: Matches customers to tables dynamically via URL parameters.
+2. Self-Service Ordering: Handles digital cart, items, and special instructions.
+3. Live Order Routing: Synchronizes new orders immediately to kitchen and waiters.
+4. Staff Coordination: Manages waiter table assignments and service completion.
+5. Sales Analytics & Menu Management: Handles menu editing, revenue chart drawing, 
+   and sales PDF downloads.
+
+2.3 User Classes and Characteristics
+The system supports four distinct user classes:
+- Customer (Dine-in Guest): Needs no login. Accesses via QR scanner. Browses menu, 
+  places orders, tracks cooking status, and requests checkout.
+- Waiter: Logs in via credentials. Manages table assignments, receives alerts, 
+  assists customers, and settles physical cash bills.
+- Kitchen Staff (Chef): Needs no complex navigation. Monitors incoming orders 
+  chronologically, filters by station, and updates cooking progress.
+- Admin (Restaurant Manager): Accesses all control panels. Manages staff, edits 
+  food prices/menus, generates table QRs, and exports daily financial reports.
+
+2.4 Operating Environment
+- Client browser: Modern web browsers (Chrome, Edge, Safari, Firefox) with JavaScript enabled.
+- Client devices:
+  - Customers: iOS/Android smartphones with camera support.
+  - Waiters & Kitchen: Tablets or touchscreens.
+  - Admin: Desktop computer or laptop.
+- Cloud backend: Hosted on Supabase cloud services (PostgreSQL, Storage, Realtime).
+
+2.5 Design and Implementation Constraints
+- Client-side limit: All logic must run client-side. Server-side processing is offloaded 
+  to PostgreSQL stored procedures or direct Supabase client calls.
+- Internet connectivity: Since it is hosted on Supabase Cloud, a stable internet connection 
+  is required. It cannot run in local offline mode without internet.
+- Database access: Must follow strict Row Level Security (RLS) rules to prevent data tampering.
+
+2.6 Assumptions and Dependencies
+- It is assumed that the restaurant has Wi-Fi or mobile data coverage for customers.
+- The system depends on the availability of Supabase Cloud services.
+- It is assumed that all tables have a printed QR code containing the unique URL structure 
+  (e.g., menu.html?table=X).
+
+--------------------------------------------------------------------------------
+3. SYSTEM FEATURES & FUNCTIONAL REQUIREMENTS
+--------------------------------------------------------------------------------
+
+3.1 Customer Ordering Module (menu.html)
+- FR-1.1: The system shall parse table numbers automatically from the URL query parameters.
+- FR-1.2: The system shall display food items categorized into Appetizers, Mains, 
+  Drinks, and Desserts.
+- FR-1.3: The system shall allow customers to select quantities and add custom 
+  cooking instructions (e.g., 'extra spicy').
+- FR-1.4: The system shall show a floating cart summarizing items, prices, and 
+  subtotal before order submission.
+- FR-1.5: The system shall allow the customer to place the order, which inserts 
+  rows into 'orders' and 'order_items' tables.
+- FR-1.6: The system shall listen to WebSockets to show real-time cooking updates 
+  (Pending, Preparing, Ready) to the customer.
+- FR-1.7: The system shall provide two checkout pathways: Online Payment (simulated) 
+  and Bring Physical Bill (sends alert to waiter dashboard).
+
+3.2 Waiter Dashboard Module (waiter.html)
+- FR-2.1: The system shall require waiter login (Username & Password) to access 
+  the dashboard.
+- FR-2.2: The system shall play an audio alert and show visual notifications for:
+  - "New Order Placed"
+  - "Bill Requested" (Bring physical bill)
+  - "Call Waiter" (Help requested)
+- FR-2.3: The system shall display a visual grid of all restaurant tables, color-coded 
+  by status (Grey = Free, Blue = Active).
+- FR-2.4: The system shall allow waiters to select an active table, view its total bill, 
+  and click 'Settle Bill' to clear the session.
+- FR-2.5: The system shall allow waiters to assign themselves to specific tables.
+
+3.3 Kitchen Display System Module (kitchen.html)
+- FR-3.1: The KDS shall display incoming active orders sorted chronologically (oldest first).
+- FR-3.2: The KDS shall display item names, quantities, and customer special notes clearly.
+- FR-3.3: The system shall allow kitchen staff to update item progress:
+  - Click 'Start Preparing' (Updates database status to 'Preparing').
+  - Click 'Mark Ready' (Updates database status to 'Ready' and notifies waiter/customer).
+  - Click 'Dismiss/Served' (Clears card from KDS display).
+
+3.4 Admin Control Panel Module (admin.html)
+- FR-4.1: The system shall require admin login.
+- FR-4.2: The dashboard shall display live analytical statistics: Today's Revenue, 
+  Active Orders, Occupied Tables, and Popular Dishes.
+- FR-4.3: The system shall display interactive charts (bar and doughnut) showing daily sales.
+- FR-4.4: The system shall allow admins to Create, Read, Update, and Delete (CRUD) 
+  food items (Menu Management) and upload images.
+- FR-4.5: The system shall generate table QR codes dynamically using client-side QRCode.js.
+- FR-4.6: The system shall compile and download sales logs as printable PDF reports.
+
+--------------------------------------------------------------------------------
+4. EXTERNAL INTERFACE REQUIREMENTS
+--------------------------------------------------------------------------------
+
+4.1 User Interfaces
+- Customer UI: Clean, light-themed, mobile-first, vertical scroll layout with Outfit font.
+- Kitchen & Waiter UI: High-contrast dark themes to reduce eye strain in hot/dark environments.
+- Admin UI: Grid-based sidebar layout optimized for desktop viewports.
+
+4.2 Hardware Interfaces
+- Camera: Required on customer mobile devices to scan table QR codes.
+- Touchscreen: Highly recommended for Kitchen Display and Waiter Tablet interfaces.
+- POS Printers (Optional): Standard system supports PDF generation, which can be printed 
+  using any standard office or receipt printer.
+
+4.3 Software Interfaces
+- Supabase JS Client: Intercepted by supabase_helper.js to manage all cloud database actions.
+- Chart.js Library: Used on the admin page to draw responsive financial charts.
+- jsPDF & html2canvas Libraries: Used in the admin module for client-side PDF document generation.
+- QRCode.js Library: Renders high-quality QR codes on-screen for download.
+- Feather Icons Script: Renders SVG icons on all dashboards.
+
+4.4 Communication Interfaces
+- HTTPS Protocol: Used for all REST API calls to fetch data, log in users, and write logs.
+- WebSocket Protocol (WSS): Used for live, bi-directional event broadcasts (Supabase Realtime).
+
+--------------------------------------------------------------------------------
+5. NON-FUNCTIONAL REQUIREMENTS
+--------------------------------------------------------------------------------
+
+5.1 Security Requirements
+- Database Policies (RLS): SQL rules restrict tables. Unauthorized users cannot delete 
+  menu items or modify other table sessions.
+- Password Hashing: User passwords must be stored using cryptographically secure hashing 
+  (bcrypt) within the PostgreSQL database.
+- Input Validation: Special characters in customer notes and waiter usernames must be 
+  sanitized to prevent SQL Injection.
+
+5.2 Reliability and Availability
+- Fault Tolerance: If connection drops, the frontend shall display an offline message 
+  and automatically attempt to reconnect to the database.
+- Availability: The cloud database backend (Supabase) guarantees 99.9% uptime.
+
+5.3 Performance and Response Time
+- Sync Latency: Live notifications (order placement to kitchen display, food ready to waiter) 
+  shall propagate in less than 1.5 seconds under standard network conditions.
+- Load Time: Individual HTML pages must load in under 2 seconds.
+
+5.4 Portability & Responsiveness
+- Cross-Browser Compatibility: UI must work correctly across Google Chrome, Apple Safari, 
+  Mozilla Firefox, and Microsoft Edge.
+- Responsive Design: Customer and waiter dashboards must adjust layouts dynamically 
+  between mobile screen widths (360px) and tablet widths (768px+).
+
+================================================================================
+                          END OF SRS SPECIFICATION DOCUMENT
+================================================================================

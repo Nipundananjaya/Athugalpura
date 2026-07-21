@@ -1,0 +1,193 @@
+================================================================================
+           ATHUGALPURA RESTAURANT – SMARTSERVE ORDERING SYSTEM
+                 CUSTOMER MENU FLOW: PRESENTATION SCRIPT
+================================================================================
+
+This document contains a complete presentation script to demo the Customer Menu 
+of the SmartServe Ordering System. 
+
+Each step contains:
+1. SCREEN ACTION: What you should do on your screen/phone.
+2. PRESENTATION SCRIPT (ENGLISH): What you should say to the examiners.
+3. සිංහල පැහැදිලි කිරීම (SINHALA / SINGLISH): Explanation of what you are doing.
+
+--------------------------------------------------------------------------------
+PART 1: INTRODUCING THE CUSTOMER MENU & QR ENTRY
+--------------------------------------------------------------------------------
+
+[SCREEN ACTION]
+Show the index.html page or a printed QR code. Then open the Customer Menu page
+by simulating a QR scan (or opening "menu.html?table=5" in the browser address bar).
+
+[PRESENTATION SCRIPT - ENGLISH]
+"Good morning/afternoon respected examiners. Today, I am presenting the Customer 
+Menu module of the Athugalpura Restaurant SmartServe system. 
+
+In a traditional restaurant, customers have to wait for a waiter to get a physical 
+menu. In our SmartServe system, the customer simply scans a table-specific QR code 
+placed on their table. 
+
+As you can see, when I scan the QR code for Table 5, the system automatically redirects 
+us to the customer menu page with the Table Number '5' locked and active in the header. 
+This ensures that the orders placed from this device are automatically routed to Table 5 
+without any manual entry errors by the customer or wait staff."
+
+[සිංහල පැහැදිලි කිරීම / SINGLISH GUIDANCE]
+- table QR code එක scan කරාම කෙලින්ම menu.html එකට table parameter එකත් එක්ක 
+  (उदा. menu.html?table=5) load වෙනවා.
+- මෙතනදී supervisor ලට පෙන්වන්න: "මේ බලන්න table number එක header එකේ display වෙනවා, 
+  ඒක හින්දා customer ට වරදින්නේ නෑ table number එක ඇතුලත් කරද්දී" කියලා.
+
+--------------------------------------------------------------------------------
+PART 2: USER INTERFACE, AESTHETICS & FOOD BROWSING
+--------------------------------------------------------------------------------
+
+[SCREEN ACTION]
+Scroll through the menu.html page, click on different food categories (Appetizers, 
+Mains, Drinks, Desserts), and hover/click on items to show details.
+
+[PRESENTATION SCRIPT - ENGLISH]
+"To elevate the dining experience, the Customer Menu is designed with a premium, 
+highly responsive user interface. It utilizes a warm food-themed color palette, 
+glassmorphism card layouts, and custom mesh gradients to make the dishes visually 
+appealing.
+
+Customers can easily filter dishes by clicking on categories at the top. Let's switch 
+from 'Appetizers' to 'Mains' and then 'Drinks'. The filter transition is instantaneous 
+because the data is loaded and cached from the database dynamically. 
+
+Each menu item card displays high-quality images, real-time prices, brief descriptions, 
+and availability status fetched from the Supabase database. If an item is disabled 
+by the admin, it will instantly show as 'Sold Out' or disappear from the menu here."
+
+[සිංහල පැහැදිලි කිරීම / SINGLISH GUIDANCE]
+- Categories (Mains, Drinks, Desserts) click කරලා filter වෙන හැටි පෙන්වන්න.
+- UI එකේ premium design එක ගැන කියන්න (Glassmorphism, beautiful orange gradients, clean typography).
+- Supabase database එකත් එක්ක direct සම්බන්ධ වෙලා තියෙන නිසා dynamic විදිහට, ready-made data 
+  ලෝඩ් වෙන එක පෙන්වන්න.
+
+--------------------------------------------------------------------------------
+PART 3: CART MANAGEMENT & PLACING AN ORDER
+--------------------------------------------------------------------------------
+
+[SCREEN ACTION]
+Click on a food item card (e.g., "Spicy Chicken Burger"). Increase the quantity to 2, 
+type a note (e.g., "No onions, extra spicy"), and click "Add to Cart". 
+Open the shopping cart panel by clicking the floating cart icon on the bottom right. 
+Type a Customer Name (e.g., "Saman") and click "Place Order".
+
+[PRESENTATION SCRIPT - ENGLISH]
+"Let's simulate placing an order. I will select the 'Spicy Chicken Burger'. A popup modal 
+appears allowing me to customize my order. I will set the quantity to two and add a 
+special cooking instruction: 'No onions, extra spicy'. 
+
+Now, I will add it to the cart. If I open the floating shopping cart at the bottom 
+right, we can see the order summary, the calculated subtotal, and our special instructions. 
+
+To submit the order, the customer can enter their name so the staff can identify them. 
+I will type 'Saman' and click 'Place Order'. The ordering system now triggers a 
+real-time broadcast to the Kitchen Display System and the Waiter Dashboard using 
+Supabase WebSockets. No page refresh was needed."
+
+[සිංහල පැහැදිලි කිරීම / SINGLISH GUIDANCE]
+- Item එකක් select කරලා quantity වැඩි කරලා, note එකක් (Cooking instruction) දාලා add to cart කරන්න.
+- Cart icon එක click කරලා cart slide-out panel එක පෙන්වන්න.
+- නම type කරලා Place Order click කරන්න. මෙතනදී database එකට dynamic data insert වෙන හැටි කියන්න.
+
+--------------------------------------------------------------------------------
+PART 4: UNDER THE HOOD - REAL-TIME TECHNOLOGY (FOR HIGH MARKS!)
+--------------------------------------------------------------------------------
+
+[SCREEN ACTION]
+Explain this verbally or show the browser console if they ask, referring to the system 
+architecture.
+
+[PRESENTATION SCRIPT - ENGLISH]
+"Under the hood, this application uses a unique serverless architecture. We do not 
+run a local Apache PHP server to handle requests. Instead, we have developed a custom 
+'supabase_helper.js' script. 
+
+This script intercepts standard AJAX fetch requests made by the frontend, translates 
+them into Secure PostgreSQL queries, and communicates directly with Supabase Cloud Services. 
+For real-time notifications, we use Supabase Realtime Channels. 
+
+So the moment our customer Saman clicked 'Place Order', a row was written to the 
+'orders' and 'order_items' tables, and a WebSocket event instantly broadcasted this to 
+the kitchen display."
+
+[සිංහල පැහැදිලි කිරීම / SINGLISH GUIDANCE]
+- මේක serverless client-side architecture එකක්. 
+- frontend එක කෙලින්ම Supabase cloud database එකත් එක්ක connect වෙන්නේ `supabase_helper.js` එකෙන් 
+  fetch request intercept කිරීමෙන්.
+- Real-time updates සදහා Supabase WebSockets (Realtime Channels) භාවිතා වෙනවා.
+
+--------------------------------------------------------------------------------
+PART 5: ORDER HISTORY & REAL-TIME COOKING STATUS
+--------------------------------------------------------------------------------
+
+[SCREEN ACTION]
+Click on the "Order History" or "Active Orders" section in the customer menu. 
+Show how the recently placed order shows a status of "Pending". 
+(Optionally: If you have the Kitchen KDS running, click "Start Preparing" on KDS 
+and show how the customer screen automatically updates to "Preparing" with a status bar).
+
+[PRESENTATION SCRIPT - ENGLISH]
+"After placing the order, the customer doesn't have to keep asking the waiter for updates. 
+They can click on the 'History' tab on their menu. 
+
+Here, they can see their active orders and their preparation status in real-time. 
+Currently, the Spicy Chicken Burger status is 'Pending'. 
+
+When the chef in the kitchen starts preparing the food on the Kitchen Display System, 
+the status here dynamically changes to 'Preparing'. Once the chef marks it as 'Ready', 
+the status instantly changes to 'Ready' on the customer's phone, and the waiter gets an 
+audible notification to serve Table 5."
+
+[සිංහල පැහැදිලි කිරීම / SINGLISH GUIDANCE]
+- customer order එක දැම්මට පස්සේ Waiter ගෙන් අහන්න ඕනේ නෑ. "Order History" එකෙන් order 
+  status එක live බලාගන්න පුලුවන් (Pending -> Preparing -> Ready).
+- Kitchen display (kitchen.html) එකෙන් status වෙනස් කරනකොට, page reload වෙන්නේ නැතුව customer ගේ 
+  phone එකට update එක live එන හැටි highlight කරන්න.
+
+--------------------------------------------------------------------------------
+PART 6: PAYMENT OPTIONS (ONLINE vs. PHYSICAL BILL)
+--------------------------------------------------------------------------------
+
+[SCREEN ACTION]
+Show the two buttons in the active order/cart panel: "Pay Online" and "Bring Physical Bill". 
+Click "Bring Physical Bill" and explain what happens.
+
+[PRESENTATION SCRIPT - ENGLISH]
+"Finally, when the customer is ready to check out, we provide two convenient payment pathways:
+
+First, is 'Pay Online'. This directs them to a secure mock online payment portal. Once 
+completed, the order status in Supabase is updated to 'Paid' instantly, free-ing up the 
+table session.
+
+Second, is 'Bring Physical Bill'. For customers paying with physical cash or card, clicking 
+this button immediately triggers a visual and sound alert on the Waiter's dashboard. 
+The waiter will see that Table 5 requested a physical bill, bring the paper bill to 
+their table, collect the money, and settle the session on the Waiter Dashboard.
+
+This completes the customer-side lifecycle. It minimizes human waiting time, makes the 
+ordering experience frictionless, and ensures high accuracy."
+
+[සිංහල පැහැදිලි කිරීම / SINGLISH GUIDANCE]
+- payment methods දෙකක් තියෙනවා: 'Pay Online' (Card checkouts) සහ 'Bring Physical Bill' (Cash).
+- 'Bring Physical Bill' click කරාම waiter.html එකට live audio/visual notification එකක් 
+  යනවා "Table 5 requested bill" කියලා.
+- Waiter ඇවිල්ලා සල්ලි අරන් waiter dashboard එකෙන් table session එක settle කරාම table 
+  එක ආයෙත් free වෙනවා.
+
+--------------------------------------------------------------------------------
+SUMMARY OF KEY CUSTOMER MODULE HIGHLIGHTS (FOR Q&A)
+--------------------------------------------------------------------------------
+1. Table QR Association: Automatic table assignment via URL params.
+2. Premium Design: Responsive, grid-based layout built with outfit typography.
+3. Custom Instructions: Dynamic notes passed to order items in the database.
+4. Real-time Status: WebSocket listener updates cooking stage live on phone.
+5. Flexible Settle: Decoupled online gateway checkouts and waiter alert triggers.
+
+================================================================================
+                        END OF CUSTOMER PRESENTATION SCRIPT
+================================================================================

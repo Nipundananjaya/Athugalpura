@@ -318,6 +318,29 @@
         // ==========================================
         if (path === 'order') {
             try {
+                if (action === 'active_table_order') {
+                    const tableNumber = parseInt(params.get('table_number') || body.table_number || 0);
+                    if (tableNumber > 0) {
+                        const sessions = await supabaseQuery(`table_sessions?table_number=eq.${tableNumber}&status=eq.active&select=session_id`);
+                        if (sessions.length > 0) {
+                            const sessionId = sessions[0].session_id;
+                            const orders = await supabaseQuery(`orders?session_id=eq.${sessionId}&payment_status=neq.paid&status=neq.cancelled&select=*&order=order_id.desc`);
+                            if (orders.length > 0) {
+                                const o = orders[0];
+                                return mockResponse({
+                                    success: true,
+                                    order_id: o.order_id,
+                                    table_number: o.table_number,
+                                    status: o.status,
+                                    payment_status: o.payment_status || 'pending',
+                                    bill_requested: o.bill_requested ? 1 : 0
+                                });
+                            }
+                        }
+                    }
+                    return mockResponse({ success: false, message: 'No active unpaid order found for this table.' });
+                }
+
                 if (action === 'history') {
                     const customerToken = params.get('customer_token') || '';
                     const orders = await supabaseQuery(`orders?customer_token=eq.${customerToken}&select=*,order_items(*,menu_items(*))&order=order_date.desc`);
